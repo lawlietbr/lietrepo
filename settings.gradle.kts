@@ -25,7 +25,7 @@ dependencyResolutionManagement {
     }
 }
 
-include(":PobreFlix")
+// include(":PobreFlix") //
 include(":Streamberry")
 // include(":NetCine") //
 include(":TopFilmes")
