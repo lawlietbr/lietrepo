@@ -2,19 +2,18 @@ package com.SuperFlix
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import com.lagradost.cloudstream3.extractors.M3U8
+import com.lagradost.cloudstream3.extractors.*
 
 class SuperFlix : MainAPI() {
     override var name = "SuperFlix"
-    override var lang = "pt-br"
+    override var lang = "pt"
     override val hasMainPage = true
-    override val hasQuickSearch = false
-    override val hasChromecastSupport = true
     override val hasDownloadSupport = true
+    override val hasChromecastSupport = true
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
 
     override val mainUrl = "https://superflix20.lol"
-    override val vpnStatus = VPNStatus.MightBeNeeded
+    private val apiUrl = "https://superflix20.lol"
 
     override val mainPage = mainPageOf(
         "filmes" to "Filmes",
@@ -24,11 +23,9 @@ class SuperFlix : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = "\( mainUrl/ \){request.data}"
+        val url = "\( apiUrl/ \){request.data}"
         val doc = app.get(url).document
-        val items = doc.select("div.items > article").mapNotNull {
-            it.toSearchResult()
-        }
+        val items = doc.select("div.items article").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(request.name, items)
     }
 
@@ -36,29 +33,25 @@ class SuperFlix : MainAPI() {
         val title = this.selectFirst("h2.Title")?.text() ?: return null
         val href = fixUrl(this.selectFirst("a")!!.attr("href"))
         val posterUrl = this.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
-
         val isMovie = this.selectFirst("span.Year") != null
-        val type = if (isMovie) TvType.Movie else TvType.TvSeries
-
-        return newMovieSearchResponse(title, href, type) {
+        return newMovieSearchResponse(title, href, if (isMovie) TvType.Movie else TvType.TvSeries) {
             this.posterUrl = posterUrl
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val url = "$mainUrl/?s=$query"
+        val url = "\( apiUrl/?s= \){query}"
         val doc = app.get(url).document
         return doc.select("div.Result article").mapNotNull { it.toSearchResult() }
     }
 
     override suspend fun load(url: String): LoadResponse {
         val doc = app.get(url).document
-
         val title = doc.selectFirst("h1.Title")!!.text()
         val poster = doc.selectFirst("div.Image img")?.attr("src")?.let { fixUrl(it) }
         val plot = doc.selectFirst("div.Description p")?.text()
-        val tags = doc.select("div.Genre a").map { it.text() }
         val year = doc.selectFirst("span.Year")?.text()?.toIntOrNull()
+        val tags = doc.select("div.Genre a").map { it.text() }
 
         val isSeries = doc.select("div.Seasons").isNotEmpty()
 
@@ -69,8 +62,8 @@ class SuperFlix : MainAPI() {
                 seasonBlock.select("li a").forEach { ep ->
                     val epNum = ep.selectFirst("span.Num")?.text()?.toIntOrNull() ?: 1
                     val epName = ep.selectFirst("h3")?.text() ?: "Episódio $epNum"
-                    val href = fixUrl(ep.attr("href"))
-                    episodes.add(Episode(href, name = epName, season = season, episode = epNum))
+                    val epUrl = fixUrl(ep.attr("href"))
+                    episodes.add(Episode(epUrl, name = epName, season = season, episode = epNum))
                 }
             }
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
@@ -96,7 +89,7 @@ class SuperFlix : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val doc = app.get(data).document
-        doc.select("div.Player source, iframe").forEach { element ->
+        doc.select("div.Player iframe, div.Player source").forEach { element ->
             val src = element.attr("src").takeIf { it.isNotBlank() } ?: return@forEach
             val link = fixUrl(src)
 
@@ -108,7 +101,7 @@ class SuperFlix : MainAPI() {
                         url = link,
                         referer = mainUrl,
                         quality = Qualities.Unknown.value,
-                        type = ExtractorLinkType.M3U8
+                        isM3u8 = true
                     )
                 )
             }
