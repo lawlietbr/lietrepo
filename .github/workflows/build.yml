@@ -36,11 +36,14 @@ jobs:
       - name: Generate plugins.json at correct path
         run: ./gradlew makePluginsJson -PoutputFile="build/plugins.json"
 
-      # 4. CRIAÇÃO DA ESTRUTURA FINAL E CORREÇÃO DE URL (RESOLVE O 404 DO .cs3/.jar)
+      # 4. CRIAÇÃO DA ESTRUTURA FINAL E CORREÇÃO DE URL (USANDO O FORMATO DE DOWNLOAD FUNCIONAL)
       - name: Mover, Corrigir URLs Internas e Criar repo.json principal
         run: |
-          # Define a base da URL correta para o repositório RAW do GitHub
-          REPO_BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/builds"
+          # ----------------------------------------------------------------------
+          # CRUCIAL: Esta é a URL que o GitHub retorna para download de arquivos, 
+          # que o CloudStream consegue resolver, diferente do padrão 'raw.githubusercontent.com'.
+          # ----------------------------------------------------------------------
+          REPO_BASE_URL="https://github.com/${{ github.repository }}/raw/refs/heads/main/builds"
           PLUGINS_LIST="[\"$REPO_BASE_URL/plugins.json\"]"
 
           # 1. Cria a pasta 'builds'
@@ -49,15 +52,15 @@ jobs:
           # 2. Move o manifesto de plugins para a pasta builds/
           mv build/plugins.json builds/plugins.json 
           
-          # 3. CRÍTICO PARA O 404: ESCAPA a URL de base para uso no comando SED
-          # Isso é necessário porque a URL contém barras (/).
+          # 3. CRÍTICO PARA O DOWNLOAD: ESCAPA a URL de base para uso no comando SED
+          # Isso é necessário porque a URL contém muitas barras (/).
           REPO_BASE_URL_ESCAPED=$(echo $REPO_BASE_URL | sed 's/\//\\\//g')
           
-          # 4. CRÍTICO PARA O 404: Substitui a URL do .cs3 no plugins.json
-          # O SED captura o nome do arquivo (ex: AnimeFHD) e substitui o caminho inteiro pela URL RAW correta.
+          # 4. CRÍTICO PARA O DOWNLOAD: Substitui a URL do .cs3 no plugins.json
+          # O SED captura o nome do arquivo (ex: AnimeFHD) e substitui o caminho inteiro pela URL FUNCIONAL.
           sed -i 's|"url": "[^"]*\([a-zA-Z0-9]\+\)\.cs3"|"url": "'"$REPO_BASE_URL_ESCAPED"'/\1.cs3"|g' builds/plugins.json
           
-          # 5. CRÍTICO PARA O 404: Substitui a URL do .jar no plugins.json
+          # 5. CRÍTICO PARA O DOWNLOAD: Substitui a URL do .jar no plugins.json
           # Repete o processo para o arquivo .jar (JarUrl).
           sed -i 's|"jarUrl": "[^"]*\([a-zA-Z0-9]\+\)\.jar"|"jarUrl": "'"$REPO_BASE_URL_ESCAPED"'/\1.jar"|g' builds/plugins.json
 
@@ -77,6 +80,6 @@ jobs:
       - name: Commit Providers to main branch
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Deploy: CloudStream Providers Update (Final Standard Commit)"
+          commit_message: "Deploy: CloudStream Providers Update (Final Download URL Fix)"
           branch: main
           file_pattern: builds/*
