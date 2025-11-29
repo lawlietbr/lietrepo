@@ -36,11 +36,11 @@ jobs:
       - name: Generate plugins.json at correct path
         run: ./gradlew makePluginsJson -PoutputFile="build/plugins.json"
 
-      # 4. CRIAÇÃO DA ESTRUTURA FINAL (MANIFESTO DUPLO)
+      # 4. CRIAÇÃO DA ESTRUTURA FINAL (MANIFESTO DUPLO) - Sintaxe YAML corrigida
       - name: Mover plugins.json e Criar repo.json principal
         run: |
-          # Define as variáveis de ambiente para a URL do repositório
-          REPO_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/builds"
+          # Define a base da URL para o repo
+          BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/builds"
           
           # 1. Cria a pasta 'builds'
           mkdir -p builds
@@ -48,25 +48,24 @@ jobs:
           # 2. Move o manifesto de plugins para a pasta builds/ (mantendo o nome correto)
           mv build/plugins.json builds/plugins.json 
           
-          # 3. CRIA o manifesto principal (repo.json)
-          cat > builds/repo.json <<EOF
+          # 3. CRIA o manifesto principal (repo.json) usando EOF seguro
+          cat > builds/repo.json <<'EOF_JSON'
 {
   "name": "CloudStream Brasil Repo",
   "iconUrl": "https://raw.githubusercontent.com/${{ github.repository }}/main/builds/RepoIcon.png",
   "description": "Repositório Brasileiro de Provedores CloudStream",
   "manifestVersion": 1,
   "pluginLists": [
-    "$REPO_URL/plugins.json"
+    "$BASE_URL/plugins.json"
   ]
 }
-EOF
-          # 4. COPIA os arquivos .cs3 e .jar (o Gradle gera ambos) para a pasta builds/
+EOF_JSON
+          
+          # 4. COPIA os arquivos .cs3 e .jar para a pasta builds/
           find . -type f -name "*.cs3" -exec cp {} builds/ \; || true
           find . -type f -name "*.jar" -exec cp {} builds/ \; || true
           
-      # 5. REMOVIDA A ETAPA SED: A estrutura do manifesto agora está correta.
-
-      # 6. DEPLOY FINAL COM AÇÃO DE COMMIT DIRETO (Standard CloudStream)
+      # 5. DEPLOY FINAL COM AÇÃO DE COMMIT DIRETO (Standard CloudStream)
       - name: Commit Providers to main branch
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
