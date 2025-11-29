@@ -3,6 +3,7 @@ name: Deploy Repository
 # Este workflow é executado após o sucesso do workflow 'Build Cloudstream Providers'
 on:
   workflow_run:
+    # Use o nome exato do seu workflow de build
     workflows: ["Build Cloudstream Providers"]
     types:
       - completed
@@ -13,34 +14,44 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      
       - name: Baixar Artefatos do Build
         uses: actions/github-script@v7
+        id: download_artifact
         with:
           script: |
-            # Busca a execução mais recente do workflow que completou com sucesso (o build)
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
+            const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
             });
-            const matchArtifact = artifacts.data.artifacts.filter((artifact) => artifact.name == "euluan-repo")[0];
+            
+            const matchArtifact = artifacts.artifacts.find(artifact => artifact.name === "euluan-repo");
+            
+            if (!matchArtifact) {
+              core.setFailed("Artefato 'euluan-repo' não encontrado.");
+              return;
+            }
+            
             const download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: matchArtifact.id,
+              archive_format: 'zip',
             });
+            
             const fs = require('fs');
             fs.writeFileSync('${{ github.workspace }}/euluan-repo.zip', Buffer.from(download.data));
-
+            
+          # O 'core' é injetado pelo actions/github-script e é necessário para setFailed
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            
       - name: Extrair Artefatos
         run: |
+          # O unzip extrai para a pasta builds/ e para a raiz (dependendo de como o upload@v4 armazena)
           unzip euluan-repo.zip
-          # O arquivo 'builds/repo.json' e os .cs3 estão agora na raiz do workspace.
-
-      # O action de deploy precisa que o conteúdo seja movido para uma pasta de destino,
-      # mas como o upload gerou o repo.json e os .cs3 na raiz (após o unzip),
-      # vamos apenas garantir que o repositório seja publicado.
+          # O arquivo 'builds/repo.json' e os .cs3 estão agora na raiz do workspace, se o upload foi feito corretamente.
 
       - name: Configurar Git
         run: |
@@ -50,12 +61,8 @@ jobs:
       - name: Deploy para GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          # Token de deploy
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Pasta a ser enviada para a branch gh-pages
-          # Como os arquivos foram extraídos para a raiz do workspace, configuramos a raiz (./)
-          publish_dir: .
-          # Garante que a branch seja 'gh-pages'
+          # A pasta 'builds' deve conter o repo.json e, idealmente, os .cs3 após o unzip
+          publish_dir: builds
           publish_branch: gh-pages
-          # Mensagem de commit
           commit_message: "Deploy do repositório de CloudStream"
