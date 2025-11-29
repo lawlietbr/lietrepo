@@ -1,0 +1,61 @@
+name: Deploy Repository
+
+# Este workflow é executado após o sucesso do workflow 'Build Cloudstream Providers'
+on:
+  workflow_run:
+    workflows: ["Build Cloudstream Providers"]
+    types:
+      - completed
+    # Só executa se o build for bem-sucedido
+    if: success()
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar Artefatos do Build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            # Busca a execução mais recente do workflow que completou com sucesso (o build)
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            const matchArtifact = artifacts.data.artifacts.filter((artifact) => artifact.name == "euluan-repo")[0];
+            const download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            const fs = require('fs');
+            fs.writeFileSync('${{ github.workspace }}/euluan-repo.zip', Buffer.from(download.data));
+
+      - name: Extrair Artefatos
+        run: |
+          unzip euluan-repo.zip
+          # O arquivo 'builds/repo.json' e os .cs3 estão agora na raiz do workspace.
+
+      # O action de deploy precisa que o conteúdo seja movido para uma pasta de destino,
+      # mas como o upload gerou o repo.json e os .cs3 na raiz (após o unzip),
+      # vamos apenas garantir que o repositório seja publicado.
+
+      - name: Configurar Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+      - name: Deploy para GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # Token de deploy
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Pasta a ser enviada para a branch gh-pages
+          # Como os arquivos foram extraídos para a raiz do workspace, configuramos a raiz (./)
+          publish_dir: .
+          # Garante que a branch seja 'gh-pages'
+          publish_branch: gh-pages
+          # Mensagem de commit
+          commit_message: "Deploy do repositório de CloudStream"
