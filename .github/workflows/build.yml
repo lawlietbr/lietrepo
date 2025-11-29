@@ -27,23 +27,27 @@ jobs:
 
       - name: Generate repository.json
         run: ./gradlew makePluginsJson
-        
-      # Esta etapa agora usa a sintaxe correta (um único 'run: |')
-      - name: Mover e Renomear para Padrão de Repositório (builds/repo.json)
+
+      # --- CORREÇÃO CRÍTICA AQUI: CONSOLIDAÇÃO DE ARQUIVOS ---
+      - name: Consolidar Arquivos CS3 e Manifesto para Upload
         run: |
-          # 1. Cria a pasta 'builds' se ela ainda não existir
+          # 1. Cria a pasta 'builds'
           mkdir -p builds
-          # 2. Tenta mover o 'build/plugins.json' para 'builds/repo.json'
-          # O '|| true' garante que o workflow não pare se o arquivo não estiver exatamente lá
+          
+          # 2. COPIA TODOS OS ARQUIVOS .CS3 ENCONTRADOS NO PROJETO PARA builds/
+          # Isso garante que todos os seus provedores (SuperFlix, etc.) sejam incluídos
+          find . -name "*.cs3" -exec cp {} builds/ \;
+          
+          # 3. Move/Renomeia o arquivo JSON gerado para o nome e local final esperado
+          # Assume-se que 'makePluginsJson' gera 'build/plugins.json'
           mv build/plugins.json builds/repo.json || true
-
-
+          
+          # Se o seu repo.json for gerado em outro local, ajuste a linha acima!
+          ls -R builds 
+        
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: euluan-repo
-          path: |
-            # Caminho corrigido para o arquivo de manifesto JSON
-            builds/repo.json 
-            # Caminho para os arquivos CS3 (geralmente gerados em cada pasta de provedor/build/libs)
-            **/build/libs/*.cs3
+          # Apenas sobe a pasta 'builds' inteira
+          path: builds/
