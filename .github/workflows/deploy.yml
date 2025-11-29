@@ -43,15 +43,15 @@ jobs:
             const fs = require('fs');
             fs.writeFileSync('${{ github.workspace }}/euluan-repo.zip', Buffer.from(download.data));
             
-          # O 'core' é injetado pelo actions/github-script e é necessário para setFailed
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # CORREÇÃO: O bloco 'env' (ambiente) deve estar aqui, no mesmo nível do 'uses' e 'with', 
+        # e não aninhado dentro do 'with'.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             
       - name: Extrair Artefatos
         run: |
-          # O unzip extrai para a pasta builds/ e para a raiz (dependendo de como o upload@v4 armazena)
+          # O unzip extrai para a pasta builds/
           unzip euluan-repo.zip
-          # O arquivo 'builds/repo.json' e os .cs3 estão agora na raiz do workspace, se o upload foi feito corretamente.
 
       - name: Configurar Git
         run: |
@@ -62,7 +62,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # A pasta 'builds' deve conter o repo.json e, idealmente, os .cs3 após o unzip
+          # A pasta 'builds' deve conter o repo.json e os .cs3 após o unzip
           publish_dir: builds
           publish_branch: gh-pages
           commit_message: "Deploy do repositório de CloudStream"
