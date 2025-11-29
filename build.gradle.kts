@@ -22,15 +22,12 @@ allprojects {
 subprojects {
     apply(plugin = "com.lagradost.cloudstream3.gradle")
 
-    // CORREÇÃO AQUI: a propriedade agora chama-se "setRepo"
     extensions.configure<com.lagradost.cloudstream3.gradle.CloudstreamExtension>("cloudstream") {
         setRepo(System.getenv("GITHUB_REPOSITORY") ?: "euluan1912/cloudstream-brazil-providers")
     }
 
     dependencies {
-        val implementation by configurations
-        val cloudstream by configurations
-
+        // NÃO USA "val implementation by configurations" aqui!
         cloudstream("com.lagradost:cloudstream3:pre-release")
         implementation(kotlin("stdlib"))
         implementation("com.github.Blatzar:NiceHttp:0.4.13")
@@ -38,7 +35,6 @@ subprojects {
     }
 }
 
-// CORREÇÃO AQUI: rootProject.layout.buildDirectory
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
