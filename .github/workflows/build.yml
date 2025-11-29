@@ -1,38 +1,49 @@
-# Linha 1: O nome do seu workflow, que aparece no GitHub Actions
-name: CloudStream Providers CI/CD
+name: Build Cloudstream Providers
 
-# Linha 4: Define o que dispara este workflow
 on:
   push:
     branches:
-      - main  # ou master, dependendo do seu branch principal
-  workflow_dispatch: # Permite disparar manualmente
+      - main
+  workflow_dispatch:
 
-# Linha 11: Onde os jobs (trabalhos) são definidos
 jobs:
-  build_and_deploy:
-    # O tipo de máquina que vai rodar o job
+  build:
     runs-on: ubuntu-latest
-    
-    # As etapas (steps) que o job vai executar
     steps:
-      # Etapa 1: Faz o checkout do código do repositório
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Etapa 2: A sua lógica de compilação/unzip (Onde o 'repo.json' é gerado)
-      - name: Compile or Unzip Providers # Adapte esta linha para sua lógica exata
-        # Aqui você colocaria o seu unzip ou o comando de build que gera os arquivos
-        run: |
-          # Exemplo: Seu comando de unzip que gera os arquivos na pasta 'builds/'
-          unzip -o euluan-repo.zip -d builds/
-
-      # Etapa 3: O bloco de deploy que havíamos corrigido para publicar a pasta 'builds/'
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # CRÍTICO: Aponta para a pasta onde os arquivos foram criados
-          publish_dir: ./builds 
-          commit_message: "Build: Automatic deployment of CloudStream providers"
-          publish_branch: gh-pages
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle (Cria os .cs3)
+        run: ./gradlew assemble --refresh-dependencies --info
+
+      - name: Generate repository.json
+        run: ./gradlew makePluginsJson
+        
+      # Esta etapa agora usa a sintaxe correta (um único 'run: |')
+      - name: Mover e Renomear para Padrão de Repositório (builds/repo.json)
+        run: |
+          # 1. Cria a pasta 'builds' se ela ainda não existir
+          mkdir -p builds
+          # 2. Tenta mover o 'build/plugins.json' para 'builds/repo.json'
+          # O '|| true' garante que o workflow não pare se o arquivo não estiver exatamente lá
+          mv build/plugins.json builds/repo.json || true
+
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: euluan-repo
+          path: |
+            # Caminho corrigido para o arquivo de manifesto JSON
+            builds/repo.json 
+            # Caminho para os arquivos CS3 (geralmente gerados em cada pasta de provedor/build/libs)
+            **/build/libs/*.cs3
