@@ -28,16 +28,14 @@ jobs:
       - name: Generate repository.json
         run: ./gradlew makePluginsJson
         
-      # Esta etapa deve ser crucial para o seu repositório.
-      # Movemos o 'plugins.json' para o nome 'repo.json' dentro da pasta 'builds', 
-      # que é o local mais comum de publicação para CloudStream.
-      # Se builds/plugins.json foi criado, vamos movê-lo para o nome padrão (repo.json)
+      # Esta etapa agora usa a sintaxe correta (um único 'run: |')
       - name: Mover e Renomear para Padrão de Repositório (builds/repo.json)
-        # 1. Cria a pasta 'builds' se ela ainda não existir
-        run: mkdir -p builds
-        # 2. Tenta mover o 'build/plugins.json' para 'builds/repo.json'
-        # O '|| true' garante que o workflow não pare se o arquivo não estiver exatamente lá
-        run: mv build/plugins.json builds/repo.json || true
+        run: |
+          # 1. Cria a pasta 'builds' se ela ainda não existir
+          mkdir -p builds
+          # 2. Tenta mover o 'build/plugins.json' para 'builds/repo.json'
+          # O '|| true' garante que o workflow não pare se o arquivo não estiver exatamente lá
+          mv build/plugins.json builds/repo.json || true
 
 
       - name: Upload Artifacts
