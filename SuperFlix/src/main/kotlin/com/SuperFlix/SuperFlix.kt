@@ -29,26 +29,34 @@ class SuperFlix : MainAPI() {
     // --- FUNÇÃO DE BUSCA DE DOMÍNIO (AGORA É SUSPEND) ---
     // A função precisa ser 'suspend' pois chama app.get()
     private suspend fun getWorkingDomain(): String {
-        // Mantenha o último domínio conhecido como fallback seguro (ajuste para .hub se for mais recente)
-        val fallbackDomain = "https://superflix.hub" 
+        // 1. FALLBACK CORRETO: Usamos o domínio mais recente e confirmado pelo usuário
+        val fallbackDomain = "https://superflixhub.com" 
         
         try {
             val searchQuery = "SuperFlix assistir filmes"
             val searchUrl = "https://www.google.com/search?q=$searchQuery"
             
             // Faz a requisição à página de resultados do Google.
-            // Timeout ajustado para 5000 milissegundos (5 segundos) e 'timeUnit' removido.
             val searchPage = app.get(searchUrl, timeout = 5000)
             
-            // Procura o primeiro link que contenha "superflix" no link (href) e seja uma URL completa
-            val linkElement = searchPage.document.select("a").firstOrNull { 
-                it.attr("href").contains("superflix") && it.attr("href").startsWith("http")
+            // 2. FILTRO REFORÇADO: Pegamos a lista dos links relevantes
+            val linkElements = searchPage.document.select("a")
+            
+            // Procura o melhor link na lista
+            val linkElement = linkElements.firstOrNull { 
+                val href = it.attr("href")
+                // Deve conter "superflix" e ser uma URL completa
+                href.contains("superflix") && 
+                href.startsWith("http") && 
+                // CRUCIAL: Filtra links de busca do Google ('/search?q=') ou links de cache
+                !href.contains("google.com/search") && 
+                !href.contains("webcache") 
             }
             
             val fullUrl = linkElement?.attr("href")
 
             if (fullUrl != null) {
-                // Limpa a URL para pegar apenas o domínio base
+                // Limpa a URL para pegar apenas o domínio base, evitando subdiretórios
                 val domainBase = fullUrl
                     .substringAfter("://") 
                     .substringBefore("/")
@@ -62,7 +70,7 @@ class SuperFlix : MainAPI() {
             println("Erro na busca dinâmica de domínio para SuperFlix: ${e.message}")
         }
         
-        // Se a busca falhar, retorna o domínio de fallback.
+        // Se a busca falhar, retorna o domínio de fallback (o correto).
         return fallbackDomain 
     }
     
@@ -151,7 +159,6 @@ class SuperFlix : MainAPI() {
             val lang = it.attr("label").ifBlank { "Português" }
             val url = it.attr("src")
             if (url.isNotBlank()) {
-                // Use newSubtitleFile para evitar warnings de depreciação (Boa Prática!)
                 subtitleCallback(SubtitleFile(lang, url))
             }
         }
