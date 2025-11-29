@@ -23,17 +23,16 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        # O comando 'publishToMavenLocal' e o 'build' garantem que tudo seja compilado
         run: ./gradlew assemble --refresh-dependencies --info
 
       - name: Generate repository.json
-      run: ./gradlew publishRepo
-      
+        run: ./gradlew publishRepo
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CloudstreamProviders
+          name: repository
           path: |
-            repo.json
+            **/build/outputs/repo/repo.json
             **/build/outputs/cs3/*.cs3
             **/build/libs/*.jar
