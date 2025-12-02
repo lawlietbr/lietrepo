@@ -5,10 +5,10 @@ import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.Actor
-// Importação necessária para o novo tipo Score
-import com.lagradost.cloudstream3.APIHolder.toScore 
 import org.jsoup.nodes.Element
 import kotlin.math.roundToInt 
+// CORREÇÃO 1: Removendo o import 'APIHolder.toScore' explícito
+// e confiando no import genérico de utilities para resolver a referência.
 
 class UltraCine : MainAPI() {
     override var mainUrl = "https://ultracine.org"
@@ -120,8 +120,9 @@ class UltraCine : MainAPI() {
                 this.posterUrl = poster
                 this.year = year
                 this.plot = plot
-                // CORREÇÃO 1: Conversão do Double (rating 0-10) para Int (score 0-100) e depois para o objeto Score?.
-                this.score = rating?.times(10)?.roundToInt()?.toScore()
+                // CORREÇÃO 1: Remoção da chamada '.toScore()' e uso do construtor Score(nota, tipo)
+                // Isso deve resolver o erro 'Unresolved reference 'toScore''
+                this.score = rating?.times(10)?.roundToInt()?.let { Score(it, null) }
                 this.tags = genres
                 if (actors != null) addActors(actors)
                 addTrailer(trailerUrl)
@@ -131,8 +132,8 @@ class UltraCine : MainAPI() {
                 this.posterUrl = poster
                 this.year = year
                 this.plot = plot
-                // CORREÇÃO 1: Conversão do Double (rating 0-10) para Int (score 0-100) e depois para o objeto Score?.
-                this.score = rating?.times(10)?.roundToInt()?.toScore()
+                // CORREÇÃO 1: Remoção da chamada '.toScore()' e uso do construtor Score(nota, tipo)
+                this.score = rating?.times(10)?.roundToInt()?.let { Score(it, null) }
                 this.tags = genres
                 this.duration = parseDuration(duration)
                 if (actors != null) addActors(actors)
@@ -161,16 +162,13 @@ class UltraCine : MainAPI() {
                         episodeTitle
                     }
                     
-                    // CORREÇÃO 2: Uso da nova assinatura do newEpisode (ou construtor), 
-                    // que requer apenas url (data), nome, temporada e episódio.
-                    // Os parâmetros 'data', 'name', 'season', 'episode' antigos
-                    // foram substituídos por argumentos posicionais/renomeados:
-                    newEpisode(
-                        episodeId, // data: String, O ID do episódio (url) é o primeiro parâmetro obrigatório.
-                        cleanTitle, // name: String?,
-                        seasonNumber, // season: Int?,
-                        episodeNumber // episode: Int?,
-                    )
+                    // CORREÇÃO 2: Adoção do formato lambda (bloco) para a função newEpisode.
+                    // Isso resolve os erros de 'Argument type mismatch' e 'Too many arguments'.
+                    newEpisode(episodeId) {
+                        name = cleanTitle
+                        season = seasonNumber
+                        episode = episodeNumber
+                    }
                 }
             
             episodes.addAll(seasonEpisodes)
