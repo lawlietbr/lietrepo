@@ -1,12 +1,14 @@
+
 package com.UltraCine
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.utils.* import com.lagradost.cloudstream3.utils.toScore // Importação explícita corrigida para resolver a referência
+import com.lagradost.cloudstream3.utils.* // CORREÇÃO: Esta linha sozinha importa o toScore() e outros utilitários.
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.Actor
 import org.jsoup.nodes.Element
 import kotlin.math.roundToInt 
+
 
 class UltraCine : MainAPI() {
     override var mainUrl = "https://ultracine.org"
