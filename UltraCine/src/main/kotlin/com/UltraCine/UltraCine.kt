@@ -97,48 +97,30 @@ class UltraCine : MainAPI() {
     subtitleCallback: (SubtitleFile) -> Unit,
     callback: (ExtractorLink) -> Unit
 ): Boolean {
-    val id = data.substringAfterLast("/").substringBefore("?").substringBefore("#")
-    val playerUrl = "https://embedplay.upns.pro/embed.php?id=$id"
+    val playerUrl = data.trim()
 
-    try {
-        val response = app.get(
-            url = playerUrl,
-            referer = mainUrl,
-            headers = mapOf(
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    // Requisição pro player
+    client.newCall(GET(playerUrl)).execute().use { playerResponse ->
+        if (!playerResponse.isSuccessful) return false
+
+        val script = playerResponse.body.string()
+        val m3u8Url = extractM3u8(script) ?: return false
+
+        callback.invoke(
+            ExtractorLink(
+                source = name,
+                name = "$name - HD",
+                url = m3u8Url,
+                referer = playerUrl,
+                quality = Qualities.Unknown.value, // ou Qualities.HD.value se quiser forçar
+                type = ExtractorLinkType.M3U8,
+                headers = mapOf("Origin" to "https://ultracine.top") // opcional, mas ajuda em alguns players
             )
         )
 
-        val text = response.text
-
-        // Regex pra pegar o m3u8 direto (funciona em 98% dos casos agora)
-        val m3u8Regex1 = Regex("""file:\s*["']([^"']+\.m3u8[^"']*)["']""")
-        val m3u8Regex2 = Regex("""src:\s*["']([^"']+\.m3u8[^"']*)["']""")
-        
-        val m3u8Url = m3u8Regex1.find(text)?.groupValues?.get(1)
-            ?: m3u8Regex2.find(text)?.groupValues?.get(1)
-
-        if (m3u8Url != null) {
-            callback.invoke(
-                ExtractorLink(
-                    source = name,
-                    name = "$name - HD",
-                    url = m3u8Url,
-                    referer = playerUrl,
-                    quality = Qualities.Unknown.value, // ou Qualities.HD.value se quiser forçar
-                    type = ExtractorLinkType.M3U8
-                )
-            )
-           
-          return true
-        }
-
-        // Fallback caso o regex falhe (raro)
-        loadExtractor(playerUrl, mainUrl, subtitleCallback, callback)
-        return true
-
-    } catch (e: Exception) {
-        e.printStackTrace()
-        return false
+        return true // sucesso! link extraído
     }
+
+    // se chegou aqui é porque deu ruim na requisição
+    return false
 }
