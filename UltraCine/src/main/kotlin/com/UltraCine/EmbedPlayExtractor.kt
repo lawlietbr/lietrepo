@@ -1,13 +1,13 @@
 package com.UltraCine
 
-import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
-import com.lagradost.cloudstream3.plugins.BasePlugin
+import com.lagradost.cloudstream3.extractors.VidStack
 
-@CloudstreamPlugin
-class UltraCineProvider : BasePlugin() {
-    override fun load() {
-        registerMainAPI(UltraCine())
-        registerExtractorAPI(EmbedPlayUpnsPro())
-        registerExtractorAPI(EmbedPlayUpnOne())
-    }
+class EmbedPlayUpnsPro : VidStack() {
+    override val name = "EmbedPlay UpnsPro"
+    override val mainUrl = "https://embedplay.upns.pro"
+}
+
+class EmbedPlayUpnOne : VidStack() {
+    override val name = "EmbedPlay UpnOne"
+    override val mainUrl = "https://embedplay.upn.one"
 }
