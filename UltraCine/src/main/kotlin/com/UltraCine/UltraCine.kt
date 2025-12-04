@@ -129,7 +129,8 @@ class UltraCine : MainAPI() {
                     type = ExtractorLinkType.M3U8
                 )
             )
-            return true
+           
+          return true
         }
 
         // Fallback caso o regex falhe (raro)
