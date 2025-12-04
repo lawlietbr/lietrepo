@@ -2,8 +2,11 @@ package com.UltraCine
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import com.lagradost.cloudstream3.network.WebViewResolver
+import com.lagradost.cloudstream3.utils.toScore // Necessário para converter Int para Score?
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import org.jsoup.nodes.Element
+import kotlin.math.roundToInt 
 
 class UltraCine : MainAPI() {
     override var name = "UltraCine"
@@ -48,6 +51,57 @@ class UltraCine : MainAPI() {
         return doc.select("ul.post-lst li").mapNotNull { it.toSearchResult() }
     }
 
+    // 🎯 FUNÇÃO 'LOAD' REINTRODUZIDA E CORRIGIDA PARA ENCONTRAR O LINK DO PLAYER
+    override suspend fun load(url: String): LoadResponse? {
+        val document = app.get(url).document
+        
+        val title = document.selectFirst("aside.fg1 header.entry-header h1.entry-title")?.text() 
+            ?: document.selectFirst("header.entry-header h1.entry-title")?.text() ?: return null
+
+        val poster = document.selectFirst("div.bghd img.TPostBg")?.let { img ->
+            img.attr("src").takeIf { it.isNotBlank() } ?: img.attr("data-src")
+        }
+        val plot = document.selectFirst("aside.fg1 div.description p")?.text()
+        val year = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.year")?.text()?.substringAfter("far\">")?.toIntOrNull()
+        val rating = document.selectFirst("div.vote-cn span.vote span.num")?.text()?.toDoubleOrNull()
+        val genres = document.select("aside.fg1 header.entry-header div.entry-meta span.genres a").map { it.text() }
+        val duration = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.duration")?.text()?.substringAfter("far\">")
+        
+        // --- Extração do Link do Player / Embed ---
+        val iframeElement = document.selectFirst("div.play-overlay div#player iframe")
+            ?: document.selectFirst("div.video iframe[src*='player.ultracine.org']")
+
+        val playerUrl = iframeElement?.let { iframe ->
+            iframe.attr("src").takeIf { it.isNotBlank() } ?: iframe.attr("data-src")
+        } ?: url // Se não encontrar o iframe, passamos a URL da página para o loadLinks inspecionar.
+
+        val isSerie = url.contains("/serie/")
+
+        return if (isSerie) {
+            // Se for série, a lógica é mais complexa, mas usamos playerUrl como data base
+            newTvSeriesLoadResponse(title, url, TvType.TvSeries, emptyList()) {
+                this.posterUrl = poster?.replace("/w1280/", "/original/")
+                this.plot = plot
+                this.year = year
+                // CORREÇÃO DE TIPO: vezes 10 (0-100) e conversão para Score?
+                this.rating = rating?.times(10)?.toInt()?.toScore() 
+                this.tags = genres
+            }
+        } else {
+            // Se for filme, passamos o playerUrl como o "data" para o loadLinks
+            newMovieLoadResponse(title, url, TvType.Movie, playerUrl) {
+                this.posterUrl = poster?.replace("/w1280/", "/original/")
+                this.plot = plot
+                this.year = year
+                // CORREÇÃO DE TIPO: vezes 10 (0-100) e conversão para Score?
+                this.rating = rating?.times(10)?.toInt()?.toScore() 
+                this.tags = genres
+                this.duration = parseDuration(duration)
+            }
+        }
+    }
+
+    // 🎯 FUNÇÃO 'LOADLINKS' ORIGINAL (Depende do playerUrl da função load)
     override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
@@ -55,9 +109,10 @@ class UltraCine : MainAPI() {
     callback: (ExtractorLink) -> Unit
 ): Boolean {
     val playerUrl = data.trim()
+    if (playerUrl == mainUrl || playerUrl.isBlank()) return false // Evita buscar links na página inicial
 
     try {
-        val response = app.get(playerUrl, referer = "https://ultracine.top/")
+        val response = app.get(playerUrl, referer = mainUrl) // Usando mainUrl como referer
         if (!response.isSuccessful) return false
 
         val script = response.text
@@ -75,16 +130,31 @@ class UltraCine : MainAPI() {
                 referer = playerUrl,
                 quality = Qualities.Unknown.value,
                 type = ExtractorLinkType.M3U8,
-                headers = mapOf("Origin" to "https://ultracine.top")
+                headers = mapOf("Origin" to mainUrl) // Usando mainUrl como Origin
             )
         )
         return true
     } catch (e: Exception) {
         e.printStackTrace()
         return false
-   
-      }
- 
-   }
 
- }
+      }
+
+   }
+    
+    // 🎯 FUNÇÃO parseDuration (Ajustada para ser privada)
+    private fun parseDuration(duration: String?): Int? {
+        if (duration == null) return null
+        val regex = Regex("(\\d+)h\\s*(\\d+)m")
+        val matchResult = regex.find(duration)
+        return if (matchResult != null) {
+            val hours = matchResult.groupValues[1].toIntOrNull() ?: 0
+            val minutes = matchResult.groupValues[2].toIntOrNull() ?: 0
+            hours * 60 + minutes
+        } else {
+            val minutesRegex = Regex("(\\d+)m")
+            val minutesMatch = minutesRegex.find(duration)
+            minutesMatch?.groupValues?.get(1)?.toIntOrNull()
+        }
+    }
+}
