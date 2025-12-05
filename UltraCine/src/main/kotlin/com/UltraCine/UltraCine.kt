@@ -2,11 +2,8 @@ package com.UltraCine
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import com.lagradost.cloudstream3.utils.toScore // Necessário para converter Int para Score?
-import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import org.jsoup.nodes.Element
-import kotlin.math.roundToInt 
 
 class UltraCine : MainAPI() {
     override var name = "UltraCine"
@@ -51,7 +48,6 @@ class UltraCine : MainAPI() {
         return doc.select("ul.post-lst li").mapNotNull { it.toSearchResult() }
     }
 
-    // 🎯 FUNÇÃO 'LOAD' REINTRODUZIDA E CORRIGIDA PARA ENCONTRAR O LINK DO PLAYER
     override suspend fun load(url: String): LoadResponse? {
         val document = app.get(url).document
         
@@ -63,86 +59,85 @@ class UltraCine : MainAPI() {
         }
         val plot = document.selectFirst("aside.fg1 div.description p")?.text()
         val year = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.year")?.text()?.substringAfter("far\">")?.toIntOrNull()
-        val rating = document.selectFirst("div.vote-cn span.vote span.num")?.text()?.toDoubleOrNull()
+        
+        // CORREÇÃO: Extrair rating e converter para score (0-100)
+        val ratingText = document.selectFirst("div.vote-cn span.vote span.num")?.text()?.toDoubleOrNull()
+        val score = if (ratingText != null) {
+            // Se rating está em escala 0-10, converte para 0-100
+            (ratingText * 10).toInt()
+        } else null
+        
         val genres = document.select("aside.fg1 header.entry-header div.entry-meta span.genres a").map { it.text() }
         val duration = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.duration")?.text()?.substringAfter("far\">")
         
-        // --- Extração do Link do Player / Embed ---
+        // Extração do Link do Player / Embed
         val iframeElement = document.selectFirst("div.play-overlay div#player iframe")
             ?: document.selectFirst("div.video iframe[src*='player.ultracine.org']")
 
         val playerUrl = iframeElement?.let { iframe ->
             iframe.attr("src").takeIf { it.isNotBlank() } ?: iframe.attr("data-src")
-        } ?: url // Se não encontrar o iframe, passamos a URL da página para o loadLinks inspecionar.
+        } ?: url
 
         val isSerie = url.contains("/serie/")
 
         return if (isSerie) {
-            // Se for série, a lógica é mais complexa, mas usamos playerUrl como data base
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, emptyList()) {
                 this.posterUrl = poster?.replace("/w1280/", "/original/")
                 this.plot = plot
                 this.year = year
-                // CORREÇÃO DE TIPO: vezes 10 (0-100) e conversão para Score?
-                this.rating = rating?.times(10)?.toInt()?.toScore() 
+                this.score = score // CORREÇÃO: usar score em vez de rating
                 this.tags = genres
             }
         } else {
-            // Se for filme, passamos o playerUrl como o "data" para o loadLinks
             newMovieLoadResponse(title, url, TvType.Movie, playerUrl) {
                 this.posterUrl = poster?.replace("/w1280/", "/original/")
                 this.plot = plot
                 this.year = year
-                // CORREÇÃO DE TIPO: vezes 10 (0-100) e conversão para Score?
-                this.rating = rating?.times(10)?.toInt()?.toScore() 
+                this.score = score // CORREÇÃO: usar score em vez de rating
                 this.tags = genres
                 this.duration = parseDuration(duration)
             }
         }
     }
 
-    // 🎯 FUNÇÃO 'LOADLINKS' ORIGINAL (Depende do playerUrl da função load)
     override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
-    val playerUrl = data.trim()
-    if (playerUrl == mainUrl || playerUrl.isBlank()) return false // Evita buscar links na página inicial
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val playerUrl = data.trim()
+        if (playerUrl == mainUrl || playerUrl.isBlank()) return false
 
-    try {
-        val response = app.get(playerUrl, referer = mainUrl) // Usando mainUrl como referer
-        if (!response.isSuccessful) return false
+        try {
+            val response = app.get(playerUrl, referer = mainUrl)
+            if (!response.isSuccessful) return false
 
-        val script = response.text
+            val script = response.text
 
-        // Extrai o .m3u8 do script (padrão do ultracine)
-        val m3u8Url = Regex("""["']([^"']*\.m3u8[^"']*)["']""").find(script)?.groupValues?.get(1)
-            ?: Regex("""file:\s*["']([^"']*\.m3u8[^"']*)["']""").find(script)?.groupValues?.get(1)
-            ?: return false
+            // Extrai o .m3u8 do script
+            val m3u8Url = Regex("""["']([^"']*\.m3u8[^"']*)["']""").find(script)?.groupValues?.get(1)
+                ?: Regex("""file:\s*["']([^"']*\.m3u8[^"']*)["']""").find(script)?.groupValues?.get(1)
+                ?: return false
 
-        callback.invoke(
-            ExtractorLink(
-                source = name,
-                name = "$name - HD",
-                url = m3u8Url,
-                referer = playerUrl,
-                quality = Qualities.Unknown.value,
-                type = ExtractorLinkType.M3U8,
-                headers = mapOf("Origin" to mainUrl) // Usando mainUrl como Origin
+            callback.invoke(
+                ExtractorLink(
+                    source = name,
+                    name = "$name - HD",
+                    url = m3u8Url,
+                    referer = playerUrl,
+                    quality = Qualities.Unknown.value,
+                    type = ExtractorLinkType.M3U8,
+                    headers = mapOf("Origin" to mainUrl)
+                )
             )
-        )
-        return true
-    } catch (e: Exception) {
-        e.printStackTrace()
-        return false
-
-      }
-
-   }
+            return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
+        }
+    }
     
-    // 🎯 FUNÇÃO parseDuration (Ajustada para ser privada)
     private fun parseDuration(duration: String?): Int? {
         if (duration == null) return null
         val regex = Regex("(\\d+)h\\s*(\\d+)m")
