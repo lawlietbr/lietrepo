@@ -100,44 +100,45 @@ class UltraCine : MainAPI() {
     }
 
     override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        if (data.isBlank()) return false
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit
+): Boolean {
+    if (data.isBlank()) return false
 
-        val url = if (data.matches(Regex("^\\d+$"))) {
-            "https://assistirseriesonline.icu/episodio/$data"
-        } else if (data.startsWith("http")) {
-            data
-        } else return false
+    val url = if (data.matches(Regex("^\\d+$"))) {
+        "https://assistirseriesonline.icu/episodio/$data"
+    } else if (data.startsWith("http")) {
+        data
+    } else return false
 
-        try {
-            val doc = app.get(url).document
+    try {
+        val doc = app.get(url).document
 
-            doc.selectFirst("button[data-source*='embedplay.upns.pro'], button[data-source*='embedplay.upn.one']")?.let {
-                val link = it.attr("data-source")
-                if (link.isNotBlank()) {
-                    loadExtractor(link, url, subtitleCallback, callback)
-                    return true
-                }
-            }
-
-            doc.selectFirst("div.play-overlay div#player iframe")?.attr("src")?.takeIf { it.isNotBlank())?.let {
-                loadExtractor(it, url, subtitleCallback, callback)
+        doc.selectFirst("button[data-source*='embedplay.upns.pro'], button[data-source*='embedplay.upn.one']")?.let {
+            val link = it.attr("data-source")
+            if (link.isNotBlank()) {
+                loadExtractor(link, url, subtitleCallback, callback)
                 return true
             }
+        }
 
-            doc.selectFirst("iframe[src*='assistirseriesonline'], iframe[data-src*='assistirseriesonline']")?.let {
-                val src = it.attr("src").takeIf { s -> s.isNotBlank() } ?: it.attr("data-src")
-                if (src.isNotBlank()) {
-                    loadExtractor(src, url, subtitleCallback, callback)
-                    return true
-                }
+        doc.selectFirst("div.play-overlay div#player iframe")?.attr("src")?.takeIf { it.isNotBlank() }?.let {
+            loadExtractor(it, url, subtitleCallback, callback)
+            return true
+        }
+
+        doc.selectFirst("iframe[src*='assistirseriesonline'], iframe[data-src*='assistirseriesonline']")?.let {
+            val src = it.attr("src").takeIf { s -> s.isNotBlank() } ?: it.attr("data-src")
+            if (src.isNotBlank()) {
+                loadExtractor(src, url, subtitleCallback, callback)
+                return true
             }
-        } catch (e: Exception) { }
-
-        return false
+        }
+    } catch (e: Exception) {
+        // silencioso
     }
+
+    return false
 }
