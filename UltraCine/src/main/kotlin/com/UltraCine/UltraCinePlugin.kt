@@ -1,7 +1,7 @@
 package com.UltraCine
 
-import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.BasePlugin
+import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 
 @CloudstreamPlugin
 class UltraCineProvider : BasePlugin() {
@@ -11,4 +11,3 @@ class UltraCineProvider : BasePlugin() {
         registerExtractorAPI(EmbedPlayUpnOne())
     }
 }
-
