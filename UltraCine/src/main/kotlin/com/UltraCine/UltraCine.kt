@@ -222,41 +222,93 @@ class UltraCine : MainAPI() {
 
     // --- O BLOCO loadLinks E AS FUNÇÕES AUXILIARES DEVEM ESTAR DENTRO DA CLASSE ---
     
+    // ... (dentro da classe UltraCine, após a função load)
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-
-        val link = if (data.matches(Regex("^\\d+$"))) {
-            // Se o ID for numérico, monta o link da página do episódio.
-            "https://assistirseriesonline.icu/episodio/$data/"
-        } else data 
-
-        // 1. Trata URLs de Episódio (necessita de encadeamento)
-        if (link.contains("assistirseriesonline.icu") && link.contains("episodio")) {
+        if (data.isBlank()) return false
+        
+        // Se a DATA é o ID numérico do episódio (usado na função parseSeriesEpisodes)
+        if (data.matches(Regex("\\d+"))) {
+            val episodeUrl = "https://assistirseriesonline.icu/episodio/$data"
+            
             try {
-                val doc = app.get(link, referer = mainUrl).document
-                doc.select("iframe").forEach { iframe ->
-                    val src = iframe.attr("src")
-                    if (src.isNotBlank() && src.startsWith("http")) {
-                        loadExtractor(src, link, subtitleCallback, callback)
+                // Carrega a página do episódio
+                val episodeDocument = app.get(episodeUrl).document
+            
+                // Procura o botão de embed play
+                val embedPlayButton = episodeDocument.selectFirst("button[data-source*='embedplay.upns.pro']") 
+                    ?: episodeDocument.selectFirst("button[data-source*='embedplay.upn.one']")
+                
+                if (embedPlayButton != null) {
+                    val embedPlayLink = embedPlayButton.attr("data-source")
+                    
+                    if (embedPlayLink.isNotBlank()) {
+                        loadExtractor(embedPlayLink, episodeUrl, subtitleCallback, callback)
+                        return true
                     }
                 }
-            } catch (_: Exception) {}
-
-            return true 
+                
+                // Procura um iframe de player único como fallback
+                val singlePlayerIframe = episodeDocument.selectFirst("div.play-overlay div#player iframe")
+                if (singlePlayerIframe != null) {
+                    val singlePlayerSrc = singlePlayerIframe.attr("src")
+                    if (singlePlayerSrc.isNotBlank()) {
+                        loadExtractor(singlePlayerSrc, episodeUrl, subtitleCallback, callback)
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                // Não é necessário imprimir o stack trace em produção, mas pode ser útil para debug.
+                // e.printStackTrace() 
+            }
+                
+        // Se a DATA é uma URL HTTP (usado para filmes ou links diretos)
+        } else if (data.startsWith("http")) {
+            try {
+                // Se a data já é o link do extrator (data-source do filme), tenta direto
+                if (data.contains("embedplay.upns.") || data.contains("playembedapi.")) {
+                    loadExtractor(data, data, subtitleCallback, callback)
+                    return true
+                }
+                
+                // Caso seja uma URL de iframe ou player que ainda precisa ser resolvida
+                val iframeDocument = app.get(data).document
+            
+                val embedPlayButton = iframeDocument.selectFirst("button[data-source*='embedplay.upns.pro']")
+                    ?: iframeDocument.selectFirst("button[data-source*='embedplay.upn.one']")
+                
+                if (embedPlayButton != null) {
+                    val embedPlayLink = embedPlayButton.attr("data-source")
+                    
+                    if (embedPlayLink.isNotBlank()) {
+                        loadExtractor(embedPlayLink, data, subtitleCallback, callback)
+                        return true
+                    }
+                }
+                
+                // Fallback para iframe simples
+                val singlePlayerIframe = iframeDocument.selectFirst("div.play-overlay div#player iframe")
+                if (singlePlayerIframe != null) {
+                    val singlePlayerSrc = singlePlayerIframe.attr("src")
+                    if (singlePlayerSrc.isNotBlank()) {
+                        loadExtractor(singlePlayerSrc, data, subtitleCallback, callback)
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                // e.printStackTrace()
+            }
         }
-
-        // 2. Tenta processar o link 'link' (que é o data-source) diretamente como um extrator.
-        if (!link.startsWith(mainUrl)) { // CORRIGIDO: mainUrl é acessível aqui dentro da classe
-             loadExtractor(link, data, subtitleCallback, callback)
-        }
-
-        // 3. Retorno final obrigatório 
-        return true
+        
+        return false
     }
+
+// ... (Função parseDuration permanece)
 
     private fun parseDuration(text: String): Int? {
         if (text.isBlank()) return null
