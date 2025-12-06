@@ -116,60 +116,106 @@ class UltraCine : MainAPI() {
             it.toSearchResult()
         }
     }
+override suspend fun load(url: String): LoadResponse? {
+    val document = app.get(url).document
 
-    override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url).document
-
-        val title = document.selectFirst("aside.fg1 header.entry-header h1.entry-title")?.text() ?: return null
-        val poster = document.selectFirst("div.bghd img.TPostBg")?.attr("src")
-            ?.takeIf { it.isNotBlank() } ?: document.selectFirst("div.bghd img.TPostBg")?.attr("data-src")
+    val title = document.selectFirst("aside.fg1 header.entry-header h1.entry-title")?.text() ?: return null
+    
+    // CORREÇÃO DO POSTER NA PÁGINA DE DETALHES
+    val poster = try {
+        // Múltiplas tentativas para encontrar o poster
+        var posterUrl: String? = null
+        
+        // Tentativa 1: Imagem TPostBg com src
+        posterUrl = document.selectFirst("div.bghd img.TPostBg")?.attr("src")
+            ?.takeIf { it.isNotBlank() }
             ?.let { fixUrl(it).replace("/w1280/", "/original/") }
-
-        val yearText = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.year")?.ownText()
-        val year = yearText?.toIntOrNull()
-
-        val durationText = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.duration")?.ownText()
-        val plot = document.selectFirst("aside.fg1 div.description p")?.text()
-        val tags = document.select("aside.fg1 header.entry-header div.entry-meta span.genres a").map { it.text() }
-
-        val actors = document.select("aside.fg1 ul.cast-lst p a").map {
-            Actor(it.text(), it.attr("href"))
+        
+        // Tentativa 2: TPostBg com data-src
+        if (posterUrl.isNullOrBlank()) {
+            posterUrl = document.selectFirst("div.bghd img.TPostBg")?.attr("data-src")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { fixUrl(it).replace("/w1280/", "/original/") }
         }
+        
+        // Tentativa 3: Qualquer imagem com w1280
+        if (posterUrl.isNullOrBlank()) {
+            posterUrl = document.selectFirst("img[src*='w1280']")?.attr("src")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { fixUrl(it).replace("/w1280/", "/original/") }
+        }
+        
+        // Tentativa 4: Primeira imagem grande
+        if (posterUrl.isNullOrBlank()) {
+            posterUrl = document.selectFirst("img")?.attr("src")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { fixUrl(it) }
+        }
+        
+        posterUrl
+    } catch (e: Exception) {
+        null
+    }
+    
+    // DEBUG (pode remover depois)
+    if (poster == null) {
+        println("ULTRA CINE DEBUG: Não encontrou poster para: $title")
+    }
+    
+    // ... RESTO DO CÓDIGO PERMANECE EXATAMENTE IGUAL ...
+    val yearText = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.year")?.ownText()
+    val year = yearText?.toIntOrNull()
 
-        val trailer = document.selectFirst("div.mdl-cn div.video iframe")?.attr("src")
-            ?.takeIf { it.isNotBlank() } ?: document.selectFirst("div.mdl-cn div.video iframe")?.attr("data-src")
+    val durationText = document.selectFirst("aside.fg1 header.entry-header div.entry-meta span.duration")?.ownText()
+    val plot = document.selectFirst("aside.fg1 div.description p")?.text()
+    val tags = document.select("aside.fg1 header.entry-header div.entry-meta span.genres a").map { it.text() }
 
-        val iframeUrl = document.selectFirst("iframe[src*='assistirseriesonline']")?.attr("src")
-            ?.takeIf { it.isNotBlank() } ?: document.selectFirst("iframe[src*='assistirseriesonline']")?.attr("data-src")
+    val actors = document.select("aside.fg1 ul.cast-lst p a").map {
+        Actor(it.text(), it.attr("href"))
+    }
 
-        val isSerie = url.contains("/serie/")
+    val trailer = document.selectFirst("div.mdl-cn div.video iframe")?.attr("src")
+        ?.takeIf { it.isNotBlank() } ?: document.selectFirst("div.mdl-cn div.video iframe")?.attr("data-src")
 
-        return if (isSerie) {
-            val episodes = if (iframeUrl != null) {
-                try {
-                    val iframeDoc = app.get(iframeUrl).document
-                    parseSeriesEpisodes(iframeDoc)
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            } else emptyList()
+    val iframeUrl = document.selectFirst("iframe[src*='assistirseriesonline']")?.attr("src")
+        ?.takeIf { it.isNotBlank() } ?: document.selectFirst("iframe[src*='assistirseriesonline']")?.attr("data-src")
 
-            newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
-                this.posterUrl = poster
-                this.year = year
-                this.plot = plot
-                this.tags = tags
-                this.recommendations = null
-                addActors(actors)
-                addTrailer(trailer)
+    val isSerie = url.contains("/serie/")
+
+    return if (isSerie) {
+        val episodes = if (iframeUrl != null) {
+            try {
+                val iframeDoc = app.get(iframeUrl).document
+                parseSeriesEpisodes(iframeDoc)
+            } catch (e: Exception) {
+                emptyList()
             }
-        } else {
-            newMovieLoadResponse(title, url, TvType.Movie, iframeUrl ?: "") {
-                this.posterUrl = poster
-                this.year = year
-                this.plot = plot
-                this.tags = tags
-                this.duration = parseDuration(durationText)
+        } else emptyList()
+
+        newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+            this.posterUrl = poster
+            this.year = year
+            this.plot = plot
+            this.tags = tags
+            this.recommendations = null
+            addActors(actors)
+            addTrailer(trailer)
+        }
+    } else {
+        newMovieLoadResponse(title, url, TvType.Movie, iframeUrl ?: "") {
+            this.posterUrl = poster
+            this.year = year
+            this.plot = plot
+            this.tags = tags
+            this.duration = 
+
+parseDuration(durationText)
+            addActors(actors)
+            addTrailer(trailer)
+        }
+    }
+}
+     parseDuration(durationText)
                 addActors(actors)
                 addTrailer(trailer)
             }
@@ -189,7 +235,6 @@ class UltraCine : MainAPI() {
 
                 val title = epEl.selectFirst("a")?.text() ?: "Episódio"
                 val epNum = title.substringBefore(" - ").toIntOrNull() ?: 1
-
                 newEpisode(epId) {
                     this.name = title.substringAfter(" - ").takeIf { it.isNotEmpty() } ?: title
                     this.season = seasonNum
