@@ -99,69 +99,69 @@ class UltraCine : MainAPI() {
         val isTvSeries = url.contains("/serie/") || doc.select("div.seasons").isNotEmpty()
 
         // Usa 'return if' para retornar o tipo correto (Série ou Filme)
-        // NOVO BLOCO DE SÉRIES DENTRO DA FUNÇÃO load
-
-// ...
         return if (isTvSeries) { 
             val episodes = mutableListOf<Episode>()
-            
-            // 1. Tenta usar o playerLinkFromButton para carregar episódios se ele existir.
-            // Se existir, a lógica de extração será diferente (provavelmente um iframe).
+
+            // 1. LÓGICA DE EXTRAÇÃO DE EPISÓDIOS
+            // Se o link do botão existir, ele pode levar a uma página com a lista (MANTIDO)
             if (playerLinkFromButton != null) {
-                // Se a série tem um botão, o link pode apontar para a página de episódios/iframe.
-                // Mantemos o código original (que pode estar correto se o botão existir):
                 try {
                     val iframeDoc = app.get(playerLinkFromButton).document 
                     iframeDoc.select("li[data-episode-id]").forEach { ep ->
-                        // ... (sua lógica de extração) ...
-                        episodes += newEpisode(epId) { /* ... */ }
+                        val epId = ep.attr("data-episode-id")
+                        val name = ep.text().trim()
+                        val season = ep.parent()?.attr("data-season-number")?.toIntOrNull()
+                        val episodeNum = name.substringBefore(" - ").toIntOrNull() ?: 1
+
+                        if (epId.isNotBlank()) {
+                            episodes += newEpisode(epId) {
+                                this.name = name.substringAfter(" - ").ifBlank { "Episódio $episodeNum" }
+                                this.season = season
+                                this.episode = episodeNum
+                            }
+                        }
                     }
                 } catch (_: Exception) {}
-            
+
             } else {
-                // 2. SE NÃO HÁ BOTÃO, PROCURA A LISTA DE EPISÓDIOS NA PÁGINA PRINCIPAL
-                // Vamos tentar selecionar a lista de episódios diretamente do documento principal (doc)
+                // 2. FALLBACK: PROCURA A LISTA DE EPISÓDIOS NA PÁGINA PRINCIPAL (CORREÇÃO para "Em Breve")
                 doc.select("div.seasons ul li a[href*='/episodio/']").forEach { epLink ->
                     val href = epLink.attr("href")
                     val epTitle = epLink.text().trim()
 
                     // O ID do episódio será a URL completa, ou você pode tentar extrair um ID
-                    // Se a URL for https://ultracine.org/episodio/id-do-episodio/
                     val epId = href.substringAfterLast("/episodio/").removeSuffix("/")
 
                     if (epId.isNotBlank()) {
                          episodes += newEpisode(epId) {
                             this.name = epTitle
                             this.episodeUrl = href
+                            // Se a URL do episódio já contiver a temporada/número, adicione aqui
+                            // Caso contrário, estes campos ficarão vazios (mas o link estará lá)
                         }
                     }
                 }
             }
 
-            newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
-                // ... (resto da resposta)
-            }
-        } // ... (resto da função load)
-
-
+            // Retorno da SÉRIE
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
                 this.year = year
                 this.plot = plot
                 this.tags = tags
-                this.score = null
+                this.score = ratingInt
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
             }
         } else {
-            // FLUXO DE FILMES (usa o link do botão ou a URL do filme se o link for null)
+            // FLUXO DE FILMES 
             newMovieLoadResponse(title, url, TvType.Movie, playerLinkFromButton ?: url) { 
                 this.posterUrl = poster
                 this.year = year
                 this.plot = plot
                 this.tags = tags
                 this.duration = duration
-                this.score = null
+                this.score = ratingInt
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
             }
@@ -174,8 +174,10 @@ class UltraCine : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        
+
         val link = if (data.matches(Regex("^\\d+$"))) {
+            // Este regex foi usado para extrair o ID numérico do episódio, agora precisa ser o link completo.
+            // Se o ID for numérico, monta o link da página do episódio.
             "https://assistirseriesonline.icu/episodio/$data/"
         } else data 
 
@@ -189,13 +191,11 @@ class UltraCine : MainAPI() {
                         loadExtractor(src, link, subtitleCallback, callback)
                     }
                 }
-            } catch (_: Exception) {
-                // Em caso de falha na extração de iframe, apenas ignora
-            }
-            // GARANTE O RETORNO: Se entrou no IF, retorna e sai daqui.
+            } catch (_: Exception) {}
+            
             return true 
         }
-        
+
         // 2. Tenta processar o link 'link' (que é o data-source) diretamente como um extrator.
         if (!link.startsWith(mainUrl)) {
              loadExtractor(link, data, subtitleCallback, callback)
