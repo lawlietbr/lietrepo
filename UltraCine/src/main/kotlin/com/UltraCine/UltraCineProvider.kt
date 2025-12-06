@@ -3,19 +3,27 @@ package com.UltraCine
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 
-// 1. IMPORTAÇÕES EXPLÍCITAS DAS CLASSES DE EXTRATORES
-// O compilador precisa ver onde essas classes estão definidas no mesmo pacote.
-import com.UltraCine.PlayEmbedApiSite
-import com.UltraCine.EmbedPlayExtractor
+// IMPORTS CORRIGIDAS:
+// Importa o extrator do subpacote 'extractors' (PlayEmbedApiSite)
+import com.UltraCine.extractors.PlayEmbedApiSite
+
+// Importa os novos extratores que estão no PACOTE PRINCIPAL (com.UltraCine)
+import com.UltraCine.EmbedPlayUpnsInk
+import com.UltraCine.EmbedPlayUpnsPro
+import com.UltraCine.EmbedPlayUpnOne
+
 
 @CloudstreamPlugin
 class UltraCineProvider : BasePlugin() {
     override fun load() {
-        // 2. REGISTRO DO API PRINCIPAL
         registerMainAPI(UltraCine()) 
         
-        // 3. REGISTRO DOS EXTRATORES (Usando as referências importadas)
-        registerExtractorAPI(PlayEmbedApiSite())
-        registerExtractorAPI(EmbedPlayExtractor()) 
+        // REGISTRA OS EXTRATORES CONFIRMADOS PELO DOMÍNIO ULTRACINE:
+        registerExtractorAPI(PlayEmbedApiSite()) // Para 'playembedapi.site'
+        registerExtractorAPI(EmbedPlayUpnsInk()) // Para 'embedplay.upns.ink'
+        
+        // MANTENHA ESTES CASO SEJAM NECESSÁRIOS:
+        // registerExtractorAPI(EmbedPlayUpnsPro())
+        // registerExtractorAPI(EmbedPlayUpnOne())
     }
 }
