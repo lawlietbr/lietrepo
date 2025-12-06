@@ -75,7 +75,7 @@ class UltraCine : MainAPI() {
         val duration = parseDuration(durationText)
 
         // 8.5 → 8500
-        val rating = doc.selectFirst("div.vote span.num, .rating span")?.text()
+        val ratingInt = doc.selectFirst("div.vote span.num, .rating span")?.text()
             ?.toDoubleOrNull()?.times(1000)?.toInt()
 
         val plot = doc.selectFirst("div.description p, .sinopse")?.text()
@@ -119,7 +119,7 @@ class UltraCine : MainAPI() {
                 this.year = year
                 this.plot = plot
                 this.tags = tags
-                this.score = rating                              // ← NOVO
+                this.score = ratingInt?.let { Score(it) }          // ← CORRETO
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
             }
@@ -130,7 +130,7 @@ class UltraCine : MainAPI() {
                 this.plot = plot
                 this.tags = tags
                 this.duration = duration
-                this.score = rating                               // ← NOVO
+                this.score = ratingInt?.let { Score(it) }          // ← CORRETO
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
             }
@@ -150,14 +150,13 @@ class UltraCine : MainAPI() {
         try {
             val doc = app.get(link, referer = mainUrl).document
 
-            // botões embedplay
             doc.select("button[data-source]").forEach {
                 val src = it.attr("data-source")
                 if (src.isNotBlank()) {
                     callback(
                         ExtractorLink(
                             source = name,
-                            name = "$name • 4K",
+                            name = "$name 4K",
                             url = src,
                             referer = link,
                             quality = Qualities.Unknown.value,
@@ -167,7 +166,6 @@ class UltraCine : MainAPI() {
                 }
             }
 
-            // iframes comuns
             doc.select("iframe").forEach { iframe ->
                 val src = iframe.attr("src")
                 if (src.isNotBlank() && src.startsWith("http")) {
