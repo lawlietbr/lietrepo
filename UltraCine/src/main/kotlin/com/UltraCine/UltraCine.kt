@@ -90,15 +90,23 @@ class UltraCine : MainAPI() {
 
         val trailer = doc.selectFirst("div.video iframe, iframe[src*=youtube]")?.attr("src")
 
+        // CORREÇÃO DA VARIÁVEL: Esta é a única variável que contém o link do player.
         val playerLinkFromButton = doc.selectFirst("div#players button[data-source]")
-    ?.attr("data-source")?.takeIf { it.isNotBlank() }
+            ?.attr("data-source")?.takeIf { it.isNotBlank() }
 
         val isTvSeries = url.contains("/serie/") || doc.select("div.seasons").isNotEmpty()
 
-        return if (isTvSeries && playerLinkToUse != null) {
+        // -----------------------------------------------------------------------------------
+        // CORREÇÃO DAS REFERÊNCIAS NÃO RESOLVIDAS (Linhas 98, 101, 129)
+        // Usando playerLinkFromButton em vez de playerLinkToUse (que não existia).
+        // -----------------------------------------------------------------------------------
+
+        if (isTvSeries && playerLinkFromButton != null) { // Linha 98
             val episodes = mutableListOf<Episode>()
             try {
-                val iframeDoc = app.get(playerLinkToUse).document
+                // Linha 101
+                val iframeDoc = app.get(playerLinkFromButton).document 
+                
                 iframeDoc.select("li[data-episode-id]").forEach { ep ->
                     val epId = ep.attr("data-episode-id")
                     val name = ep.text().trim()
@@ -126,7 +134,8 @@ class UltraCine : MainAPI() {
                 trailer?.let { addTrailer(it) }
             }
         } else {
-            newMovieLoadResponse(title, url, TvType.Movie, playerLinkToUse ?: url) {
+            // Linha 129
+            newMovieLoadResponse(title, url, TvType.Movie, playerLinkFromButton ?: url) { 
                 this.posterUrl = poster
                 this.year = year
                 this.plot = plot
@@ -153,38 +162,43 @@ class UltraCine : MainAPI() {
         try {
             val doc = app.get(link, referer = mainUrl).document
 
+            // Esta lógica é para extrair links de botões DENTRO da página de player (link)
+            // Se o link já for o link do extrator (data-source), esta seção deve ser revisada
             doc.select("button[data-source]").forEach {
                 val src = it.attr("data-source")
                 if (src.isNotBlank()) {
-                    callback(
-                        ExtractorLink(
-                            source = name,
-                            name = "$name 4K",
-                            url = src,
-                            referer = link,
-                            quality = Qualities.Unknown.value,
-                            type = ExtractorLinkType.VIDEO
-                        )
+                    // Chamada corrigida, pois 'data' já deve ser o link do extrator
+                    loadExtractor(
+                        src, 
+                        link, // referer
+                        subtitleCallback, 
+                        callback
                     )
                 }
             }
-
+            
+            // Esta lógica tenta extrair iframes DENTRO da página de player (link)
             doc.select("iframe").forEach { iframe ->
                 val src = iframe.attr("src")
                 if (src.isNotBlank() && src.startsWith("http")) {
-                    callback(
-                        ExtractorLink(
-                            source = name,
-                            name = name,
-                            url = src,
-                            referer = link,
-                            quality = Qualities.Unknown.value,
-                            type = ExtractorLinkType.VIDEO
-                        )
+                    // Chamada corrigida, pois 'data' já deve ser o link do extrator
+                    loadExtractor(
+                        src, 
+                        link, // referer
+                        subtitleCallback, 
+                        callback
                     )
                 }
             }
         } catch (_: Exception) {}
+
+        // Se o link for um link direto de extrator (o que esperamos), a lógica acima será suficiente.
+        // Se for um link de player de botão (data-source), o loadExtractor deve ser chamado diretamente.
+        
+        // Tenta processar o link 'link' (que é o data-source) diretamente como um extrator.
+        if (!link.startsWith(mainUrl)) { // Evita tentar extrair a página principal como vídeo
+            loadExtractor(link, data, subtitleCallback, callback)
+        }
 
         return true
     }
