@@ -106,8 +106,7 @@ class UltraCine : MainAPI() {
                 this.tags = tags
                 this.recommendations = null
                 ratingText?.let { 
-                    this.score = Score(it, 10.0)  // Score(valor: Double, scale: Double = 10.0)
-                }
+                    this.score = null
                 addActors(actors)
                 addTrailer(trailer)
             }
@@ -119,8 +118,7 @@ class UltraCine : MainAPI() {
                 this.tags = tags
                 this.duration = durationText?.let { parseDuration(it) }
                 ratingText?.let { 
-                    this.score = Score(it, 10.0)  // Score(valor: Double, scale: Double = 10.0)
-                }
+                    this.score = null
                 addActors(actors)
                 addTrailer(trailer)
             }
