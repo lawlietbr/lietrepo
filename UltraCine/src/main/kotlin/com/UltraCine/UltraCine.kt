@@ -56,7 +56,7 @@ class UltraCine : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val url = "\( mainUrl/?s= \){java.net.URLEncoder.encode(query, "UTF-8")}"
+        val url = "$mainUrl/?s=${java.net.URLEncoder.encode(query, "UTF-8")}"
         val doc = app.get(url).document
         return doc.select("div.aa-cn ul.post-lst li").mapNotNull { it.toSearchResult() }
     }
