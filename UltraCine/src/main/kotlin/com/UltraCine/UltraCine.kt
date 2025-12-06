@@ -6,8 +6,6 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import org.jsoup.nodes.Element
 import java.net.URLEncoder
-import com.lagradost.cloudstream3.utils.AppUtils.newScore
-
 
 
 class UltraCine : MainAPI() {
@@ -122,7 +120,7 @@ class UltraCine : MainAPI() {
                 this.year = year
                 this.plot = plot
                 this.tags = tags
-                this.score = ratingInt?.let { newScore(it) } 
+                this.score = null
           // ← CORRETO
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
@@ -134,7 +132,7 @@ class UltraCine : MainAPI() {
                 this.plot = plot
                 this.tags = tags
                 this.duration = duration
-                this.score = ratingInt?.let { newScore(it) } 
+                this.score = null
        // ← CORRETO
                 addActors(actors)
                 trailer?.let { addTrailer(it) }
