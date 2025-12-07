@@ -65,28 +65,35 @@ class SuperFlix : MainAPI() {
         MainPageData("Últimos Animes", "$mainUrl/animes")
     )
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = if (page == 1) {
-            request.data
-        } else {
-            val type = request.data.substringAfterLast("/")
-            if (type.contains("genero")) {
-                val genre = request.data.substringAfterLast("genero/").substringBefore("/")
-                "$mainUrl/genero/$genre/page/$page"
-            } else {
-                "$mainUrl/$type/page/$page"
-            }
-        }
-        
+        override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        // ... (lógica de URL inalterada) ...
+
         val response = app.get(url, headers = defaultHeaders)
         val document = response.document
 
-        val list = document.select("a.card").mapNotNull { it.toSearchResponse() }
+        // NOVO CÓDIGO: Lógica do SearchResponse diretamente no getMainPage
+        val list = document.select("a.card").mapNotNull { element -> 
+            val title = element.attr("title")
+            val url = fixUrl(element.attr("href"))
+            // Usando o seletor card-img correto
+            val posterUrl = element.selectFirst("img.card-img")?.attr("src")?.let { fixUrl(it) }
+
+            if (title.isNullOrEmpty() || url.isNullOrEmpty()) return@mapNotNull null
+
+            val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
+            val cleanTitle = title.substringBeforeLast("(").trim()
+
+            val type = if (url.contains("/filme/")) TvType.Movie else TvType.TvSeries
+
+            // Usando newSearchResponse para maior compatibilidade
+            newSearchResponse(cleanTitle, url, type) {
+                this.posterUrl = posterUrl
+                this.year = year
+            }
+        }
 
         return newHomePageResponse(request.name, list, list.isNotEmpty())
     }
-
-    // DENTRO DO SEU SuperFlix.kt
 
 override suspend fun search(query: String): List<SearchResponse> {
     // 1. Constrói a URL de busca
