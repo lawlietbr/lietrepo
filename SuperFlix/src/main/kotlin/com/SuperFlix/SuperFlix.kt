@@ -73,8 +73,9 @@ class SuperFlix : MainAPI() {
 
             val type = if (url.contains("/filme/")) TvType.Movie else TvType.TvSeries
             
-            // CORREÇÃO: Força o retorno do objeto para resolver o escopo
+            // CORREÇÃO (Sem variável local posterUrl)
             return@mapNotNull newSearchResponse(cleanTitle, url, type) {
+                // Extrai o poster URL diretamente aqui
                 this.posterUrl = element.selectFirst("img")?.attr("data-src")
                     .takeIf { it?.isNotEmpty() == true } 
                     ?: element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
@@ -86,48 +87,113 @@ class SuperFlix : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-    val url = "$mainUrl/?s=$query"
-    val response = app.get(url, headers = defaultHeaders)
-    val document = response.document 
+        val url = "$mainUrl/?s=$query"
 
-    // Tentamos seletores comuns que englobam o resultado completo,
-    // incluindo o link com a classe '.card' ou '.movie-card'
-    val results = document.select("a.card, a.movie-card, div.result-item a, a.card-img-top").mapNotNull { it.toSearchResponse() }
+        val response = app.get(url, headers = defaultHeaders)
+        val document = response.document 
 
-    // >>>>> CÓDIGO DE DIAGNÓSTICO <<<<<
-    if (results.isEmpty()) {
-        // Pega as primeiras 150 caracteres do HTML recebido
-        val errorHtml = document.html().take(150)
-        // Lança um erro que você verá no log do Cloudstream
-        throw ErrorLoadingException("ERRO BUSCA: Nenhum resultado. HTML Recebido (150 chars): $errorHtml")
+        val results = document.select("a.card, div.card").mapNotNull { element ->
+
+            val title = element.selectFirst(".card-title")?.text()?.trim() ?: return@mapNotNull null
+            
+            val href = element.attr("href").ifEmpty { 
+                element.selectFirst("a")?.attr("href") 
+            } ?: return@mapNotNull null
+
+            val typeText = element.selectFirst(".card-meta")?.text()?.trim() ?: "Filme" 
+            val type = if (typeText.contains("Série", ignoreCase = true)) TvType.TvSeries else TvType.Movie
+
+            // CORREÇÃO (Sem variável local posterUrl)
+            return@mapNotNull newSearchResponse(title, fixUrl(href), type) {
+                this.posterUrl = element.selectFirst("img")?.attr("data-src")
+                    .takeIf { it?.isNotEmpty() == true } 
+                    ?: element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+            }
+        }
+
+        if (results.isEmpty()) {
+            val errorHtml = document.html().take(150)
+            throw ErrorLoadingException("ERRO BUSCA: Nenhum resultado. HTML Recebido (150 chars): $errorHtml")
+        }
+
+        return results
     }
-    // >>>>> FIM DO CÓDIGO DE DIAGNÓSTICO <<<<<
-    
-    return results
-}
 
-    // DENTRO DA FUNÇÃO load(url: String)
+    override suspend fun load(url: String): LoadResponse {
+        val response = app.get(url, headers = defaultHeaders) 
+        val document = response.document
 
-// ... (Outras extrações)
+        val isMovie = url.contains("/filme/")
 
-// 3. TAGS/GÊNEROS (Seleção direta pela classe .chip)
-val tags = document.select("a.chip").map { it.text().trim() }.filter { it.isNotEmpty() }
+        // 1. TÍTULO
+        val dynamicTitle = document.selectFirst(".title")?.text()?.trim()
+        val title: String
 
-// 4. ELENCO (ATORES): Estratégia de EXCLUSÃO REFORÇADA
-val allDivLinks = document.select("div a").map { it.text().trim() }
-val chipTexts = tags.toSet() 
+        if (dynamicTitle.isNullOrEmpty()) {
+            val fullTitle = document.selectFirst("title")?.text()?.trim()
+                ?: throw ErrorLoadingException("Não foi possível extrair a tag <title>.")
 
-// Atores = Todos os links de DIVs - Links que são Tags
-val actors = allDivLinks
-    .filter { linkText -> linkText !in chipTexts } // Remove tags
-    .filter { linkText -> !linkText.contains("Assista sem anúncios") } // Remove propaganda
-    .filter { it.isNotEmpty() && it.length > 2 }   // Remove ruídos
-    .distinct() 
-    .take(15) // Limita a lista de atores para segurança
-    .toList()
+            title = fullTitle.substringAfter("Assistir").substringBefore("Grátis").trim()
+                .ifEmpty { fullTitle.substringBefore("Grátis").trim() } 
+        } else {
+            title = dynamicTitle
+        }
 
-// ... (O restante do código permanece o mesmo)
+        // 2. POSTER e SINOPSE
+        val posterUrl = document.selectFirst(".poster img")?.attr("src")?.let { fixUrl(it) }
+            ?: document.selectFirst(".poster")?.attr("src")?.let { fixUrl(it) }
 
+        val plot = document.selectFirst(".syn")?.text()?.trim()
+            ?: "Sinopse não encontrada."
+
+        // 3. TAGS/GÊNEROS
+        val tags = document.select("a.chip").map { it.text().trim() }.filter { it.isNotEmpty() }
+
+        // 4. ELENCO (ATORES): Usando a Estratégia de Exclusão (que compilava)
+        val allDivLinks = document.select("div a").map { it.text().trim() }
+        val chipTexts = tags.toSet() 
+
+        val actors = allDivLinks
+            .filter { linkText -> linkText !in chipTexts }
+            .filter { linkText -> !linkText.contains("Assista sem anúncios") }
+            .filter { it.isNotEmpty() && it.length > 2 }
+            .distinct() 
+            .take(15) 
+            .toList()
+
+        // Outros campos
+        val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
+
+        val type = if (isMovie) TvType.Movie else TvType.TvSeries
+
+        return if (isMovie) {
+            val embedUrl = getFembedUrl(document)
+            newMovieLoadResponse(title, url, type, embedUrl) {
+                this.posterUrl = posterUrl
+                this.plot = plot
+                this.tags = tags
+                this.year = year
+                addActors(actors)
+            }
+        } else {
+            val seasons = document.select("div#season-tabs button").mapIndexed { index, element ->
+                val seasonName = element.text().trim()
+                newEpisode(url) {
+                    name = seasonName
+                    season = index + 1
+                    episode = 1 
+                    data = url 
+                }
+            }
+            newTvSeriesLoadResponse(title, url, type, seasons) { 
+                this.posterUrl = posterUrl
+                this.plot = plot
+                this.tags = tags
+                this.year = year
+                addActors(actors)
+            }
+        }
+    }
 
 
     override suspend fun loadLinks(
