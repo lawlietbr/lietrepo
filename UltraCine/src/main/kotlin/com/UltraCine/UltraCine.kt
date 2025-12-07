@@ -343,16 +343,16 @@ class UltraCine : MainAPI() {
                             videoUrl.contains("googlevideo")) {
                             println("🎬 URL de vídeo em script: $videoUrl")
                             
-                            callback(
-                                ExtractorLink(
-                                    name,
-                                    name,
-                                    videoUrl,
-                                    referer = iframeUrl,
-                                    quality = Qualities.Unknown.value,
-                                    isM3u8 = videoUrl.contains(".m3u8")
-                                )
+                            // CORREÇÃO AQUI: Usando newExtractorLink
+                            val link = newExtractorLink(
+                                name,
+                                name,
+                                videoUrl,
+                                iframeUrl,
+                                Qualities.Unknown.value,
+                                videoUrl.contains(".m3u8")
                             )
+                            callback(link)
                             return true
                         }
                     }
@@ -372,11 +372,20 @@ class UltraCine : MainAPI() {
                 }
             }
             
-            // ESTRATÉGIA 3: Tentar com WebView (último recurso)
-            println("🔄 Tentando com WebView...")
-            val webViewResult = loadWebViewLinks(iframeUrl, iframeUrl, subtitleCallback, callback)
-            if (webViewResult) {
-                println("✅ WebView funcionou!")
+            // ESTRATÉGIA 3: Tentar acessar diretamente como player externo
+            println("🔄 Tentando como player externo...")
+            val videoUrl = extractDirectVideoUrl(doc)
+            if (videoUrl != null) {
+                println("🎬 URL direta encontrada: $videoUrl")
+                val link = newExtractorLink(
+                    name,
+                    name,
+                    videoUrl,
+                    iframeUrl,
+                    Qualities.Unknown.value,
+                    videoUrl.contains(".m3u8")
+                )
+                callback(link)
                 return true
             }
             
@@ -436,27 +445,32 @@ class UltraCine : MainAPI() {
                 println("📄 Resposta da API: ${responseText.take(500)}...")
                 
                 // Tentar extrair URL do vídeo da resposta
-                val videoPatterns = listOf(
-                    Regex("""['"]url['"]\s*:\s*['"](https?://[^"']+)['"]"""),
-                    Regex("""['"]src['"]\s*:\s*['"](https?://[^"']+)['"]"""),
-                    Regex("""<iframe[^>]+src=['"](https?://[^"']+)['"]"""),
-                    Regex("""(https?://[^"'\s]+\.m3u8[^"'\s]*)"""),
-                    Regex("""(https?://[^"'\s]+\.mp4[^"'\s]*)""")
-                )
+                val videoUrl = extractVideoUrlFromResponse(responseText)
+                if (videoUrl != null) {
+                    println("🎬 URL encontrada na API: $videoUrl")
+                    
+                    // CORREÇÃO AQUI: Usando newExtractorLink
+                    val link = newExtractorLink(
+                        name,
+                        name,
+                        videoUrl,
+                        apiUrl,
+                        Qualities.Unknown.value,
+                        videoUrl.contains(".m3u8")
+                    )
+                    callback(link)
+                    return true
+                }
                 
-                for (pattern in videoPatterns) {
-                    val matches = pattern.findAll(responseText).toList()
-                    for (match in matches) {
-                        val videoUrl = match.groupValues[1]
-                        if (videoUrl.isNotBlank() && 
-                            (videoUrl.contains(".m3u8") || videoUrl.contains(".mp4") || 
-                             videoUrl.contains("player") || videoUrl.contains("embed"))) {
-                            println("🎬 URL encontrada na API: $videoUrl")
-                            
-                            if (loadExtractor(fixUrl(videoUrl), mainUrl, subtitleCallback, callback)) {
-                                return true
-                            }
-                        }
+                // Tentar extrair iframe da resposta
+                val iframePattern = Regex("""<iframe[^>]+src=['"](https?://[^"']+)['"]""")
+                val iframeMatch = iframePattern.find(responseText)
+                if (iframeMatch != null) {
+                    val iframeSrc = iframeMatch.groupValues[1]
+                    println("🖼️ Iframe encontrado na API: $iframeSrc")
+                    
+                    if (loadMovieLinks(iframeSrc, subtitleCallback, callback)) {
+                        return true
                     }
                 }
             } catch (e: Exception) {
@@ -468,7 +482,7 @@ class UltraCine : MainAPI() {
         val episodeUrl = "https://assistirseriesonline.icu/episodio/$episodeId/"
         println("🔗 Tentando URL direta: $episodeUrl")
         
-        try {
+        return try {
             val doc = app.get(episodeUrl, headers = mapOf(
                 "User-Agent" to getUserAgent(),
                 "Referer" to mainUrl
@@ -490,81 +504,112 @@ class UltraCine : MainAPI() {
                 if (scriptText.contains("jwplayer") || scriptText.contains("videojs")) {
                     println("🎬 Player JavaScript encontrado")
                     
-                    val videoUrlPattern = Regex("""['"](https?://[^"']+\.(?:m3u8|mp4)[^"']*)['"]""")
-                    val matches = videoUrlPattern.findAll(scriptText).toList()
-                    
-                    for (match in matches) {
-                        val videoUrl = match.groupValues[1]
+                    val videoUrl = extractVideoUrlFromResponse(scriptText)
+                    if (videoUrl != null) {
                         println("🎬 URL do player: $videoUrl")
                         
-                        callback(
-                            ExtractorLink(
-                                name,
-                                name,
-                                videoUrl,
-                                referer = episodeUrl,
-                                quality = Qualities.Unknown.value,
-                                isM3u8 = videoUrl.contains(".m3u8")
-                            )
+                        // CORREÇÃO AQUI: Usando newExtractorLink
+                        val link = newExtractorLink(
+                            name,
+                            name,
+                            videoUrl,
+                            episodeUrl,
+                            Qualities.Unknown.value,
+                            videoUrl.contains(".m3u8")
                         )
+                        callback(link)
                         return true
                     }
                 }
             }
-        } catch (e: Exception) {
-            println("💥 ERRO ao acessar página do episódio: ${e.message}")
-        }
-        
-        // ESTRATÉGIA 3: WebView como último recurso
-        println("🔄 Último recurso: WebView")
-        return loadWebViewLinks(episodeUrl, episodeUrl, subtitleCallback, callback)
-    }
-
-    private suspend fun loadWebViewLinks(
-        url: String,
-        referer: String,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        return try {
-            val webView = WebViewUtil()
-            val result = webView.extractLinks(
-                url = url,
-                regex = listOf(
-                    Regex("""(https?://[^"'\s]+\.m3u8[^"'\s]*)"""),
-                    Regex("""(https?://[^"'\s]+\.mp4[^"'\s]*)"""),
-                    Regex("""['"]file['"]\s*:\s*['"](https?://[^"']+)['"]"""),
-                    Regex("""<source[^>]+src=['"](https?://[^"']+)['"]""")
-                ),
-                timeout = 15000,
-                headers = mapOf(
-                    "User-Agent" to getUserAgent(),
-                    "Referer" to referer
-                )
-            )
             
-            if (result.isNotEmpty()) {
-                println("✅ WebView encontrou ${result.size} links")
-                result.forEach { videoUrl ->
-                    if (videoUrl.contains(".m3u8") || videoUrl.contains(".mp4")) {
-                        callback(
-                            ExtractorLink(
-                                name,
-                                name,
-                                videoUrl,
-                                referer = referer,
-                                quality = Qualities.Unknown.value,
-                                isM3u8 = videoUrl.contains(".m3u8")
-                            )
-                        )
-                    }
-                }
+            // ESTRATÉGIA 3: Tentar extrair URL direta da página
+            val directVideoUrl = extractDirectVideoUrl(doc)
+            if (directVideoUrl != null) {
+                println("🎬 URL direta da página: $directVideoUrl")
+                val link = newExtractorLink(
+                    name,
+                    name,
+                    directVideoUrl,
+                    episodeUrl,
+                    Qualities.Unknown.value,
+                    directVideoUrl.contains(".m3u8")
+                )
+                callback(link)
                 return true
             }
+            
             false
         } catch (e: Exception) {
-            println("💥 ERRO no WebView: ${e.message}")
+            println("💥 ERRO ao acessar página do episódio: ${e.message}")
             false
         }
+    }
+
+    private fun extractVideoUrlFromResponse(responseText: String): String? {
+        val videoPatterns = listOf(
+            Regex("""['"]url['"]\s*:\s*['"](https?://[^"']+)['"]"""),
+            Regex("""['"]file['"]\s*:\s*['"](https?://[^"']+)['"]"""),
+            Regex("""['"]src['"]\s*:\s*['"](https?://[^"']+)['"]"""),
+            Regex("""(https?://[^"'\s]+\.m3u8[^"'\s]*)"""),
+            Regex("""(https?://[^"'\s]+\.mp4[^"'\s]*)"""),
+            Regex("""videoUrl\s*[:=]\s*['"](https?://[^"']+)['"]""")
+        )
+        
+        for (pattern in videoPatterns) {
+            val matches = pattern.findAll(responseText).toList()
+            for (match in matches) {
+                val url = match.groupValues[1]
+                if (url.isNotBlank() && 
+                    (url.contains(".m3u8") || url.contains(".mp4") || 
+                     url.contains("googlevideo"))) {
+                    return url
+                }
+            }
+        }
+        return null
+    }
+
+    private fun extractDirectVideoUrl(doc: org.jsoup.nodes.Document): String? {
+        // Procurar elementos de vídeo
+        val videoElements = doc.select("video source[src]")
+        for (source in videoElements) {
+            val src = source.attr("src")
+            if (src.isNotBlank() && (src.contains(".m3u8") || src.contains(".mp4"))) {
+                return src
+            }
+        }
+        
+        // Procurar em atributos data-
+        val dataUrls = doc.select("[data-url], [data-src]")
+        for (element in dataUrls) {
+            val url = element.attr("data-url").takeIf { it.isNotBlank() } 
+                    ?: element.attr("data-src").takeIf { it.isNotBlank() }
+            
+            if (url != null && (url.contains(".m3u8") || url.contains(".mp4"))) {
+                return url
+            }
+        }
+        
+        return null
+    }
+
+    // Função auxiliar para criar ExtractorLink com a nova API
+    private fun newExtractorLink(
+        source: String,
+        name: String,
+        url: String,
+        referer: String,
+        quality: Int,
+        isM3u8: Boolean
+    ): ExtractorLink {
+        return ExtractorLink(
+            source,
+            name,
+            url,
+            referer,
+            quality,
+            isM3u8
+        )
     }
 }
