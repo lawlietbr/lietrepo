@@ -167,8 +167,8 @@ class UltraCine : MainAPI() {
         }
     }
 
-    // FUNÇÃO AUXILIAR PARA CRIAR LINKS CORRETAMENTE
-    private fun createSeriesExtractorLink(videoUrl: String, episodeUrl: String, name: String = "Série"): ExtractorLink {
+    // FUNÇÃO AUXILIAR PARA CRIAR LINKS CORRETAMENTE (SUSPEND)
+    private suspend fun createSeriesExtractorLink(videoUrl: String, episodeUrl: String, name: String = "Série"): ExtractorLink {
         val quality = extractQualityFromUrl(videoUrl)
         val isM3u8 = videoUrl.contains(".m3u8")
         
@@ -177,7 +177,7 @@ class UltraCine : MainAPI() {
             name = "${this.name} ($name)",
             url = videoUrl
         ) {
-            this.referer = episodeUrl
+            referer = episodeUrl
             this.quality = quality
             this.isM3u8 = isM3u8
         }
