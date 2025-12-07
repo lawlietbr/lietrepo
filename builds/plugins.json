@@ -220,10 +220,10 @@
     },
     {
         "iconUrl": "https://novizer.com/img/android-chrome-192x192.png",
-        "jarFileSize": 35900,
+        "jarFileSize": 35901,
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/euluan1912/cloudstream-brazil-providers",
-        "fileSize": 10140,
+        "fileSize": 10150,
         "status": 1,
         "language": "pt-br",
         "authors": [
