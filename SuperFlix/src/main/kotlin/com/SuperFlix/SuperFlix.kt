@@ -137,25 +137,25 @@ override suspend fun search(query: String): List<SearchResponse> {
         val plot = document.selectFirst(".syn")?.text()?.trim()
             ?: "Sinopse não encontrada."
         
-       // 3. TAGS/GÊNEROS (Seleção direta pela classe .chip)
+       // 3. TAGS/GÊNEROS (Seleção direta pela classe .chip que você encontrou)
 val tags = document.select("a.chip").map { it.text().trim() }.filter { it.isNotEmpty() }
 
 // 4. ELENCO (ATORES): Estratégia de EXCLUSÃO REFORÇADA
 
-// A) Pega TODOS os links dentro de DIVs que estão no CONTEÚDO PRINCIPAL (para reduzir o ruído)
-val allDivLinks = document.select("div a").map { it.text().trim() }
+// A) Pega TODOS os links que são candidatos (dentro de DIVs, fora de NAV)
+// Isso pega Atores, Diretores, e possivelmente outros links de texto no corpo do filme.
+val allCandidateLinks = document.select("div:not(.navbar) a").map { it.text().trim() }
     
-// B) Pega TODOS os textos de TAGS/GÊNEROS que já estão corretos.
+// B) Pega TODOS os textos de TAGS/GÊNEROS (a.chip)
 val chipTexts = tags.toSet() 
 
-// C) ATORES: Filtra a lista A, removendo TUDO que está na lista B.
-// Usamos um filtro de tamanho para eliminar links de direção ou ruído.
-val actors = allDivLinks
+// C) ATORES: Filtra os Candidatos A, removendo o Ruído
+val actors = allCandidateLinks
     .filter { linkText -> linkText !in chipTexts } // Remove tags
-    .filter { it.isNotEmpty() && it.length > 2 }   // Remove ruídos
+    .filter { linkText -> !linkText.contains("Assista sem anúncios") } // Remove o link de propaganda (Imagem 1000039127.jpg)
+    .filter { it.isNotEmpty() && it.length > 2 }   // Remove ruídos e links de 1 ou 2 letras (ex: 'a', 'de')
     .distinct() 
-    .take(15) // Limita a lista aos 15 primeiros (para evitar pegar listas longas e incorretas)
-    .toList() // Finaliza a lista de atores
+    .toList() 
 
         // Outros campos
         val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
