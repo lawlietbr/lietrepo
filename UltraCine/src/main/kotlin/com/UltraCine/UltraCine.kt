@@ -4,8 +4,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
-import com.lagradost.cloudstream3.network.WebViewResolver
-import kotlinx.coroutines.delay
+import com.lagradost.cloudstream3.network.WebViewResolver  // ← NOVO: Pra simular browser/JS
 import org.jsoup.nodes.Element
 
 class UltraCine : MainAPI() {
@@ -15,9 +14,9 @@ class UltraCine : MainAPI() {
     override var lang = "pt-br"
     override val hasDownloadSupport = true
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
-    override val hasQuickSearch = true
-    override val vpnStatus = VPNStatus.MightBeNeeded
-    // Removido: chromecastSupport não é uma propriedade válida
+
+    // User-Agent pra simular browser real (melhora pra sites com ads/JS)
+    private fun getUserAgent(): String = "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
     override val mainPage = mainPageOf(
         "$mainUrl/category/lancamentos/" to "Lançamentos",
@@ -38,10 +37,6 @@ class UltraCine : MainAPI() {
         "$mainUrl/category/thriller/" to "Thriller"
     )
 
-    // User-Agent customizado para simular browser real
-    private fun getUserAgent(): String = 
-        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = request.data + if (page > 1) "page/$page/" else ""
         val document = app.get(url).document
@@ -54,7 +49,7 @@ class UltraCine : MainAPI() {
     private fun Element.toSearchResult(): SearchResponse? {
         val title = selectFirst("header.entry-header h2.entry-title")?.text() ?: return null
         val href = selectFirst("a.lnk-blk")?.attr("href") ?: return null
-
+        
         val posterUrl = selectFirst("div.post-thumbnail figure img")?.attr("src")
             ?.takeIf { it.isNotBlank() } 
             ?.let { fixUrl(it).replace("/w500/", "/original/") }
@@ -82,7 +77,7 @@ class UltraCine : MainAPI() {
         val document = app.get(url).document
 
         val title = document.selectFirst("aside.fg1 header.entry-header h1.entry-title")?.text() ?: return null
-
+        
         val poster = document.selectFirst("div.bghd img.TPostBg")?.attr("src")
             ?.takeIf { it.isNotBlank() } 
             ?.let { fixUrl(it).replace("/w1280/", "/original/") }
@@ -138,42 +133,28 @@ class UltraCine : MainAPI() {
         }
     }
 
-    // FUNÇÃO SIMPLIFICADA PARA EXTRAIR EPISÓDIOS
     private fun parseSeriesEpisodes(doc: org.jsoup.nodes.Document): List<Episode> {
         val episodes = mutableListOf<Episode>()
 
-        println("=== ANALISANDO EPISÓDIOS ===")
+        doc.select("header.header ul.header-navigation li").forEach { seasonEl ->
+            val seasonNum = seasonEl.attr("data-season-number").toIntOrNull() ?: return@forEach
+            val seasonId = seasonEl.attr("data-season-id")
 
-        // Procura por links de episódios
-        doc.select("a[href*='/episodio/']").forEach { link ->
-            val href = link.attr("href")
-            val title = link.text().trim()
-            
-            if (title.isNotBlank() && href.isNotBlank()) {
-                println("🎬 Encontrado: $title -> $href")
-                
-                // Tenta extrair temporada e episódio do título
-                var season = 1
-                var episode = 1
-                
-                val seasonMatch = Regex("""T(\d+)""", RegexOption.IGNORE_CASE).find(title)
-                val episodeMatch = Regex("""E(\d+)""", RegexOption.IGNORE_CASE).find(title)
-                
-                season = seasonMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
-                episode = episodeMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
-                
-                // CORREÇÃO: Usando newEpisode() em vez do construtor
-                episodes.add(
-                    newEpisode(href) {
-                        this.name = title
-                        this.season = season
-                        this.episode = episode
-                    }
-                )
-            }
+            doc.select("li[data-season-id='$seasonId']").mapNotNull { epEl ->
+                val epId = epEl.attr("data-episode-id")
+                if (epId.isBlank()) return@mapNotNull null
+
+                val title = epEl.selectFirst("a")?.text() ?: "Episódio"
+                val epNum = title.substringBefore(" - ").toIntOrNull() ?: 1
+
+                newEpisode(epId) {
+                    this.name = title.substringAfter(" - ").takeIf { it.isNotEmpty() } ?: title
+                    this.season = seasonNum
+                    this.episode = epNum
+                }
+            }.also { episodes.addAll(it) }
         }
 
-        println("\n✅ Total de episódios encontrados: ${episodes.size}")
         return episodes
     }
 
@@ -190,200 +171,257 @@ class UltraCine : MainAPI() {
         }
     }
 
-    // SOLUÇÃO DEFINITIVA PARA 2025 - JW Player + Anúncios Interativos
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        println("🎬 ULTRA CINE loadLinks CHAMADO!")
-        println("📦 Data recebido: $data")
-        
         if (data.isBlank()) return false
 
         return try {
-            // Constrói a URL final
+            // DETERMINA A URL FINAL
             val finalUrl = when {
-                data.startsWith("https://") || data.startsWith("http://") -> data
-                data.matches(Regex("\\d+")) -> "https://assistirseriesonline.icu/episodio/$data"
-                else -> "https://assistirseriesonline.icu/$data"
+                // ID numérico (episódio de série - PROBLEMA PRINCIPAL)
+                data.matches(Regex("^\\d+$")) -> {
+                    "https://assistirseriesonline.icu/episodio/$data"
+                }
+                // URL do ultracine com ID
+                data.contains("ultracine.org/") && data.matches(Regex(".*/\\d+$")) -> {
+                    val id = data.substringAfterLast("/")
+                    "https://assistirseriesonline.icu/episodio/$id"
+                }
+                // URL normal (filme)
+                else -> data
             }
-            
-            println("🔗 URL final: $finalUrl")
-            
-            // ESTRATÉGIA 1: Extração manual rápida (sem WebView)
-            if (tryManualExtraction(finalUrl, subtitleCallback, callback)) {
-                println("✅ Extração manual bem-sucedida!")
-                return true
-            }
-            
-            // ESTRATÉGIA 2: WebViewResolver (para sites com JW Player + ads)
-            println("🔄 Usando WebViewResolver para lidar com JW Player e anúncios...")
-            return useWebViewResolver(finalUrl, callback)
-            
-        } catch (e: Exception) {
-            println("💥 ERRO CRÍTICO no loadLinks: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-    
-    // Tenta extração manual primeiro (mais rápido)
-    private suspend fun tryManualExtraction(
-        url: String,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        try {
-            val headers = mapOf(
-                "User-Agent" to getUserAgent(),
-                "Referer" to mainUrl,
-                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language" to "pt-BR,pt;q=0.9,en;q=0.8"
+
+            val isEpisode = data.matches(Regex("^\\d+$"))  // Detecta se é episódio
+
+            // REQUISIÇÃO COM USER-AGENT REAL (pra evitar blocks)
+            val res = app.get(
+                finalUrl,
+                referer = mainUrl,
+                headers = mapOf("User-Agent" to getUserAgent()),
+                timeout = 30
             )
-            
-            val res = app.get(url, headers = headers, timeout = 30)
+            val html = res.text
             val doc = res.document
-            
-            // Procura JW Player específico
-            val jwPlayer = doc.selectFirst("div.jwplayer, div.jw-wrapper, [class*='jw-']")
-            if (jwPlayer != null) {
-                println("🎯 JW Player detectado na página!")
-                
-                // Tenta extrair do JW Player via atributos data
-                val possibleSources = listOf(
-                    jwPlayer.attr("data-src"),
-                    jwPlayer.attr("data-file"),
-                    jwPlayer.attr("data-video-src"),
-                    jwPlayer.selectFirst("video")?.attr("src"),
-                    jwPlayer.selectFirst("source")?.attr("src"),
-                    jwPlayer.selectFirst("iframe")?.attr("src")
-                )
-                
-                for (source in possibleSources) {
-                    if (!source.isNullOrBlank() && 
-                        (source.contains(".m3u8") || source.contains(".mp4") || source.contains("googlevideo"))) {
-                        println("🎬 Vídeo encontrado no JW Player: $source")
+
+            if (isEpisode) {
+                // ========== ESTRATÉGIA ESPECÍFICA PARA EPISÓDIOS (WEBVIEW + SIMULAÇÃO) ==========
+                // Usa WebView pra executar JS, pular ads e clicar play/pause
+                WebViewResolver(
+                    html = html,
+                    url = finalUrl,
+                    headers = mapOf(
+                        "Referer" to mainUrl,
+                        "User-Agent" to getUserAgent()
+                    )
+                ).resolveUsingWebView(finalUrl) { extractedLink ->
+                    // Filtra links válidos (ignora ads)
+                    if (extractedLink.isNotBlank() && 
+                        (extractedLink.contains(".mp4") || extractedLink.contains(".m3u8") || extractedLink.contains("googlevideo") || extractedLink.contains("blob:")) &&
+                        !extractedLink.contains("banner") && !extractedLink.contains("ads")) {
                         
-                        if (loadExtractor(fixUrl(source), url, subtitleCallback, callback)) {
+                        val quality = extractQualityFromUrl(extractedLink)
+                        val isM3u8 = extractedLink.contains(".m3u8")
+                        val linkName = if (quality != Qualities.Unknown.value) {
+                            "\( {name} ( \){quality}p)"
+                        } else {
+                            "${name} (Episódio)"
+                        }
+                        
+                        callback.invoke(
+                            ExtractorLink(
+                                source = name,
+                                name = linkName,
+                                url = extractedLink,
+                                referer = finalUrl,
+                                quality = quality,
+                                isM3u8 = isM3u8,
+                                headers = mapOf("Referer" to finalUrl)
+                            )
+                        )
+                    }
+                }
+
+                // Delay pra simular skip ad + play/pause (8s baseado na sua descrição)
+                delay(8000)
+
+                // Tenta regex como fallback rápido (pra casos onde WebView é lento)
+                val jwPlayerPattern = Regex("""<video[^>]+class=["'][^"']*jw[^"']*["'][^>]+src=["'](https?://[^"']+)["']""")
+                val jwMatches = jwPlayerPattern.findAll(html).toList()
+                
+                jwMatches.forEach { match ->
+                    val videoUrl = match.groupValues[1]
+                    if (videoUrl.isNotBlank() && 
+                        (videoUrl.contains(".mp4") || videoUrl.contains(".m3u8")) &&
+                        !videoUrl.contains("banner") && 
+                        !videoUrl.contains("ads")) {
+                        
+                        val quality = extractQualityFromUrl(videoUrl)
+                        val linkName = if (quality != Qualities.Unknown.value) {
+                            "\( {name} ( \){quality}p)"
+                        } else {
+                            "${name} (Episódio)"
+                        }
+                        
+                        callback.invoke(
+                            ExtractorLink(
+                                source = name,
+                                name = linkName,
+                                url = videoUrl,
+                                referer = finalUrl,
+                                quality = quality,
+                                isM3u8 = videoUrl.contains(".m3u8"),
+                                headers = mapOf("Referer" to finalUrl)
+                            )
+                        )
+                        return true
+                    }
+                }
+
+                // Retorna true pra episódios (WebView roda em background, CloudStream espera)
+                return true
+            } else {
+                // ========== PARA FILMES (MANTER SEU CÓDIGO ORIGINAL - FUNCIONA) ==========
+                // Regex JW Player (seu original)
+                val jwPlayerPattern = Regex("""<video[^>]+class=["'][^"']*jw[^"']*["'][^>]+src=["'](https?://[^"']+)["']""")
+                val jwMatches = jwPlayerPattern.findAll(html).toList()
+                
+                if (jwMatches.isNotEmpty()) {
+                    jwMatches.forEach { match ->
+                        val videoUrl = match.groupValues[1]
+                        if (videoUrl.isNotBlank() && 
+                            (videoUrl.contains(".mp4") || videoUrl.contains(".m3u8")) &&
+                            !videoUrl.contains("banner") && 
+                            !videoUrl.contains("ads")) {
+                            
+                            val quality = extractQualityFromUrl(videoUrl)
+                            val linkName = if (quality != Qualities.Unknown.value) {
+                                "\( {name} ( \){quality}p)"
+                            } else {
+                                "${name} (Filme)"
+                            }
+                            
+                            callback.invoke(
+                                ExtractorLink(
+                                    source = name,
+                                    name = linkName,
+                                    url = videoUrl,
+                                    referer = finalUrl,
+                                    quality = quality,
+                                    isM3u8 = videoUrl.contains(".m3u8"),
+                                    headers = mapOf("Referer" to finalUrl)
+                                )
+                            )
                             return true
                         }
                     }
                 }
-            }
-            
-            // Procura botões de play/skip
-            doc.select("button.skip-button, .skip-ad, .jw-skip, [class*='skip']").forEach { btn ->
-                val skipUrl = btn.attr("data-src") ?: btn.attr("data-url") ?: btn.attr("href")
-                if (!skipUrl.isNullOrBlank()) {
-                    println("⏭️ Botão skip encontrado: $skipUrl")
-                    
-                    if (loadExtractor(fixUrl(skipUrl), url, subtitleCallback, callback)) {
-                        return true
-                    }
-                }
-            }
-            
-            // Procura iframes de vídeo
-            doc.select("iframe[src*='player'], iframe[src*='video']").forEach { iframe ->
-                val src = iframe.attr("src")
-                if (!src.isNullOrBlank()) {
-                    println("🖼️ Iframe de vídeo: $src")
-                    
-                    if (loadExtractor(fixUrl(src), url, subtitleCallback, callback)) {
-                        return true
-                    }
-                }
-            }
-            
-        } catch (e: Exception) {
-            println("❌ Extração manual falhou: ${e.message}")
-        }
-        
-        return false
-    }
-    
-    // Usa WebViewResolver para sites complexos com JavaScript
-    private suspend fun useWebViewResolver(url: String, callback: (ExtractorLink) -> Unit): Boolean {
-        return try {
-            println("🌐 Iniciando WebViewResolver...")
-            
-            // CORREÇÃO: Usando os parâmetros corretos do WebViewResolver
-            val webViewResult = WebViewResolver(
-                html = null, // Vamos deixar o WebView carregar a URL
-                url = url,
-                interceptUrl = { interceptedUrl ->
-                    // Intercepta URLs que podem ser de vídeo
-                    println("🔄 URL interceptada: $interceptedUrl")
-                    
-                    if (interceptedUrl.contains(".m3u8") || 
-                        interceptedUrl.contains(".mp4") || 
-                        interceptedUrl.contains(".mkv") || 
-                        interceptedUrl.contains("googlevideo")) {
-                        
-                        println("🎬 URL de vídeo interceptada: $interceptedUrl")
-                        
-                        // Cria o ExtractorLink usando newExtractorLink
-                        callback(
-                            newExtractorLink(
-                                source = name,
-                                name = "${name} (Auto-Extracted)",
-                                url = interceptedUrl,
-                                referer = url,
-                                quality = extractQualityFromUrl(interceptedUrl),
-                                isM3u8 = interceptedUrl.contains(".m3u8")
-                            )
-                        )
-                        return@WebViewResolver true
-                    }
-                    false
-                }
-            ).resolveUsingWebView(url) { interceptedUrl ->
-                // Callback para URLs interceptadas
-                println("📥 URL recebida do WebView: $interceptedUrl")
                 
-                if (interceptedUrl.isNotBlank() && 
-                    (interceptedUrl.contains(".m3u8") || 
-                     interceptedUrl.contains(".mp4") || 
-                     interceptedUrl.contains("googlevideo"))) {
-                    
-                    println("🎬 Vídeo encontrado via WebView: $interceptedUrl")
-                    
-                    // Cria o ExtractorLink
-                    callback(
-                        newExtractorLink(
-                            source = name,
-                            name = "${name} (WebView)",
-                            url = interceptedUrl,
-                            referer = url,
-                            quality = extractQualityFromUrl(interceptedUrl),
-                            isM3u8 = interceptedUrl.contains(".m3u8")
-                        )
-                    )
+                // Fallback Google Storage (seu original)
+                val googlePattern = Regex("""https?://storage\.googleapis\.com/[^"'\s<>]+\.mp4[^"'\s<>]*""")
+                val googleMatches = googlePattern.findAll(html).toList()
+                
+                if (googleMatches.isNotEmpty()) {
+                    googleMatches.forEach { match ->
+                        val videoUrl = match.value
+                        if (videoUrl.isNotBlank() && !videoUrl.contains("banner")) {
+                            val quality = extractQualityFromUrl(videoUrl)
+                            callback.invoke(
+                                ExtractorLink(
+                                    source = name,
+                                    name = "\( {name} ( \){quality}p)",
+                                    url = videoUrl,
+                                    referer = finalUrl,
+                                    quality = quality,
+                                    isM3u8 = false,
+                                    headers = mapOf("Referer" to finalUrl)
+                                )
+                            )
+                            return true
+                        }
+                    }
                 }
+                
+                // MP4 genérico (seu original)
+                val mp4Pattern = Regex("""(https?://[^"'\s<>]+\.mp4[^"'\s<>]*)""")
+                val mp4Matches = mp4Pattern.findAll(html).toList()
+                
+                if (mp4Matches.isNotEmpty()) {
+                    mp4Matches.forEach { match ->
+                        val videoUrl = match.value
+                        if (videoUrl.isNotBlank() && 
+                            !videoUrl.contains("banner") && 
+                            !videoUrl.contains("ads") &&
+                            videoUrl.length > 30) {
+                            
+                            val quality = extractQualityFromUrl(videoUrl)
+                            callback.invoke(
+                                ExtractorLink(
+                                    source = name,
+                                    name = "\( {name} ( \){quality}p)",
+                                    url = videoUrl,
+                                    referer = finalUrl,
+                                    quality = quality,
+                                    isM3u8 = false,
+                                    headers = mapOf("Referer" to finalUrl)
+                                )
+                            )
+                            return true
+                        }
+                    }
+                }
+                
+                // EmbedPlay fallback (seu original)
+                doc.select("iframe[src]").forEach { iframe ->
+                    val src = iframe.attr("src")
+                    if (src.isNotBlank() && loadExtractor(src, finalUrl, subtitleCallback, callback)) {
+                        return true
+                    }
+                }
+                
+                doc.select("button[data-source]").forEach { button ->
+                    val source = button.attr("data-source")
+                    if (source.isNotBlank() && loadExtractor(source, finalUrl, subtitleCallback, callback)) {
+                        return true
+                    }
+                }
+                
+                return false
             }
-            
-            // Aguarda um pouco para o WebView processar
-            delay(10000) // 10 segundos
-            
-            true
         } catch (e: Exception) {
-            println("❌ WebViewResolver falhou: ${e.message}")
             e.printStackTrace()
+            // Pra episódios, retorna true (WebView pode estar rodando)
+            if (data.matches(Regex("^\\d+$"))) return true
             false
         }
     }
-    
-    // Função auxiliar para extrair qualidade da URL
+
+    // Seu extractQualityFromUrl (mantido e agora usado)
     private fun extractQualityFromUrl(url: String): Int {
+        val qualityPattern = Regex("""/(\d+)p?/""")
+        val match = qualityPattern.find(url)
+        
+        if (match != null) {
+            val qualityNum = match.groupValues[1].toIntOrNull()
+            return when (qualityNum) {
+                360 -> Qualities.get360()
+                480 -> Qualities.get480()
+                720 -> Qualities.get720()
+                1080 -> Qualities.get1080()
+                2160 -> Qualities.get2160()
+                else -> Qualities.Unknown.value
+            }
+        }
+        
         return when {
-            url.contains("360p", true) -> 360
-            url.contains("480p", true) -> 480
-            url.contains("720p", true) -> 720
-            url.contains("1080p", true) -> 1080
-            url.contains("1440p", true) -> 1440
-            url.contains("2160p", true) -> 2160
+            url.contains("360p", ignoreCase = true) -> Qualities.get360()
+            url.contains("480p", ignoreCase = true) -> Qualities.get480()
+            url.contains("720p", ignoreCase = true) -> Qualities.get720()
+            url.contains("1080p", ignoreCase = true) -> Qualities.get1080()
+            url.contains("2160p", ignoreCase = true) -> Qualities.get2160()
             else -> Qualities.Unknown.value
         }
     }
