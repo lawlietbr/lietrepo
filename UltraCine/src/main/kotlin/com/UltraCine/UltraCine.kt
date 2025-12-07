@@ -17,7 +17,7 @@ class UltraCine : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override val hasQuickSearch = true
     override val vpnStatus = VPNStatus.MightBeNeeded
-    override val chromecastSupport = true
+    // Removido: chromecastSupport não é uma propriedade válida
 
     override val mainPage = mainPageOf(
         "$mainUrl/category/lancamentos/" to "Lançamentos",
@@ -162,14 +162,13 @@ class UltraCine : MainAPI() {
                 season = seasonMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
                 episode = episodeMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
                 
+                // CORREÇÃO: Usando newEpisode() em vez do construtor
                 episodes.add(
-                    Episode(
-                        data = href,
-                        name = title,
-                        season = season,
-                        episode = episode,
-                        posterUrl = null
-                    )
+                    newEpisode(href) {
+                        this.name = title
+                        this.season = season
+                        this.episode = episode
+                    }
                 )
             }
         }
@@ -310,135 +309,82 @@ class UltraCine : MainAPI() {
         return try {
             println("🌐 Iniciando WebViewResolver...")
             
-            // Configurações do WebView
+            // CORREÇÃO: Usando os parâmetros corretos do WebViewResolver
             val webViewResult = WebViewResolver(
+                html = null, // Vamos deixar o WebView carregar a URL
                 url = url,
-                timeout = 45000, // 45 segundos para carregar e interagir
-                customHeaders = mapOf(
-                    "User-Agent" to getUserAgent(),
-                    "Referer" to mainUrl,
-                    "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                    "Accept-Language" to "pt-BR,pt;q=0.9,en;q=0.8"
-                ),
-                // Scripts JavaScript para interagir com a página
-                jsCode = """
-                    // Aguarda a página carregar
-                    setTimeout(function() {
-                        console.log('🔍 Procurando JW Player e anúncios...');
-                        
-                        // 1. Tenta encontrar e pular anúncios
-                        var skipButtons = document.querySelectorAll('button.skip-button, .skip-ad, .jw-skip, [class*="skip"]');
-                        skipButtons.forEach(function(btn) {
-                            console.log('🎯 Clicando em botão skip:', btn);
-                            btn.click();
-                        });
-                        
-                        // 2. Tenta encontrar e clicar no play do JW Player
-                        var playButtons = document.querySelectorAll('.jw-play, .jw-icon-playback, button[aria-label*="play"], .play-btn');
-                        playButtons.forEach(function(btn) {
-                            console.log('▶️ Clicando em play:', btn);
-                            btn.click();
-                        });
-                        
-                        // 3. Aguarda um pouco para vídeo carregar
-                        setTimeout(function() {
-                            // Coleta todos os links de vídeo possíveis
-                            var videoLinks = [];
-                            
-                            // JW Player sources
-                            var jwPlayers = document.querySelectorAll('[class*="jw-"]');
-                            jwPlayers.forEach(function(player) {
-                                var sources = [
-                                    player.getAttribute('data-src'),
-                                    player.getAttribute('data-file'),
-                                    player.getAttribute('data-video-src'),
-                                    player.querySelector('video')?.src,
-                                    player.querySelector('source')?.src,
-                                    player.querySelector('iframe')?.src
-                                ];
-                                videoLinks = videoLinks.concat(sources.filter(s => s));
-                            });
-                            
-                            // Vídeos HTML5
-                            var videos = document.querySelectorAll('video');
-                            videos.forEach(function(video) {
-                                videoLinks.push(video.src);
-                                if (video.currentSrc) videoLinks.push(video.currentSrc);
-                            });
-                            
-                            // Iframes
-                            var iframes = document.querySelectorAll('iframe');
-                            iframes.forEach(function(iframe) {
-                                videoLinks.push(iframe.src);
-                            });
-                            
-                            // Scripts com URLs de vídeo
-                            var scripts = document.querySelectorAll('script');
-                            scripts.forEach(function(script) {
-                                var text = script.textContent || script.innerHTML;
-                                var matches = text.match(/(https?:[^"'\s]+\.(?:m3u8|mp4|mkv)[^"'\s]*)/gi);
-                                if (matches) {
-                                    videoLinks = videoLinks.concat(matches);
-                                }
-                            });
-                            
-                            console.log('📹 Links encontrados:', videoLinks.filter(l => l).length);
-                            
-                            // Envia os links de volta
-                            videoLinks.filter(function(link) {
-                                return link && (link.includes('.m3u8') || 
-                                               link.includes('.mp4') || 
-                                               link.includes('.mkv') || 
-                                               link.includes('googlevideo'));
-                            }).forEach(function(link) {
-                                console.log('📤 Enviando link:', link);
-                                Android.sendLink(link);
-                            });
-                            
-                        }, 5000); // Aguarda 5 segundos após interação
-                        
-                    }, 3000); // Aguarda 3 segundos inicial
-                """.trimIndent()
-            ).resolve()
-            
-            // Processa os links encontrados pelo WebView
-            var foundLinks = false
-            webViewResult.forEach { link ->
-                if (link.isNotBlank() && 
-                    (link.contains(".m3u8") || link.contains(".mp4") || 
-                     link.contains("googlevideo") || link.contains("blob:"))) {
+                interceptUrl = { interceptedUrl ->
+                    // Intercepta URLs que podem ser de vídeo
+                    println("🔄 URL interceptada: $interceptedUrl")
                     
-                    println("🎬 WebView encontrou vídeo: $link")
-                    
-                    // Converte blob: URLs se necessário
-                    val finalUrl = if (link.startsWith("blob:")) {
-                        println("⚠️ Convertendo blob URL...")
-                        link
-                    } else {
-                        fixUrl(link)
+                    if (interceptedUrl.contains(".m3u8") || 
+                        interceptedUrl.contains(".mp4") || 
+                        interceptedUrl.contains(".mkv") || 
+                        interceptedUrl.contains("googlevideo")) {
+                        
+                        println("🎬 URL de vídeo interceptada: $interceptedUrl")
+                        
+                        // Cria o ExtractorLink usando newExtractorLink
+                        callback(
+                            newExtractorLink(
+                                source = name,
+                                name = "${name} (Auto-Extracted)",
+                                url = interceptedUrl,
+                                referer = url,
+                                quality = extractQualityFromUrl(interceptedUrl),
+                                isM3u8 = interceptedUrl.contains(".m3u8")
+                            )
+                        )
+                        return@WebViewResolver true
                     }
+                    false
+                }
+            ).resolveUsingWebView(url) { interceptedUrl ->
+                // Callback para URLs interceptadas
+                println("📥 URL recebida do WebView: $interceptedUrl")
+                
+                if (interceptedUrl.isNotBlank() && 
+                    (interceptedUrl.contains(".m3u8") || 
+                     interceptedUrl.contains(".mp4") || 
+                     interceptedUrl.contains("googlevideo"))) {
+                    
+                    println("🎬 Vídeo encontrado via WebView: $interceptedUrl")
                     
                     // Cria o ExtractorLink
                     callback(
-                        ExtractorLink(
+                        newExtractorLink(
                             source = name,
-                            name = "${name} (Auto-Extracted)",
-                            url = finalUrl,
+                            name = "${name} (WebView)",
+                            url = interceptedUrl,
                             referer = url,
-                            quality = extractQualityFromUrl(finalUrl),
-                            isM3u8 = finalUrl.contains(".m3u8"),
-                            headers = mapOf(
-                                "Referer" to url,
-                                "User-Agent" to getUserAgent()
-                            )
+                            quality = extractQualityFromUrl(interceptedUrl),
+                            isM3u8 = interceptedUrl.contains(".m3u8")
                         )
                     )
-                    
-                    foundLinks = true
                 }
             }
             
-            if (!foundLinks) {
-                println("⚠️ WebView não encontrou links de vídeo válidos")
-                // Tenta fallback para extractors padrão
-                return loadExtractor(url, url, {}, 
+            // Aguarda um pouco para o WebView processar
+            delay(10000) // 10 segundos
+            
+            true
+        } catch (e: Exception) {
+            println("❌ WebViewResolver falhou: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    // Função auxiliar para extrair qualidade da URL
+    private fun extractQualityFromUrl(url: String): Int {
+        return when {
+            url.contains("360p", true) -> 360
+            url.contains("480p", true) -> 480
+            url.contains("720p", true) -> 720
+            url.contains("1080p", true) -> 1080
+            url.contains("1440p", true) -> 1440
+            url.contains("2160p", true) -> 2160
+            else -> Qualities.Unknown.value
+        }
+    }
+}
