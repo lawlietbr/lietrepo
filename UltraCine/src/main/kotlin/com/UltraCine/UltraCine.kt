@@ -155,29 +155,49 @@ class UltraCine : MainAPI() {
 
     if (data.isBlank()) return false
 
-    // Detecta se é episódio de série
-    val isEpisode = data.matches(Regex("^\\d+$")) || data.contains("assistirseriesonline.icu")
+    // É episódio se vier só o número OU se já for a URL do assistirseriesonline
+    val isEpisode = data.matches("^\\d+$".toRegex()) || data.contains("assistirseriesonline.icu")
 
-    val episodeUrl = if (data.matches(Regex("^\\d+$"))) {
+    val url = if (data.matches("^\\d+$".toRegex())) {
         "https://assistirseriesonline.icu/episodio/$data"
-    } else data
+    } else {
+        data
+    }
 
     return try {
         if (isEpisode) {
-            // Força WebView pra pular anúncio e ativar o JW Player
-            val response = app.get(episodeUrl, referer = mainUrl)
-            WebViewResolver(response.text).resolveUsingWebView(episodeUrl) { link ->
-                // O extractor upns.one pega automaticamente aqui (sem marca d'água)
-                loadExtractor(link, episodeUrl, subtitleCallback, callback)
+            // Força WebView + JS para pular anúncio e dar play automaticamente
+            val res = app.get(url, referer = mainUrl)
+
+            val resolver = WebViewResolver(res.text)
+
+            // Aqui o upns.one vai pegar o link final (Google Storage direto, sem marca d'água)
+            resolver.resolveUsingWebView(url) { link ->
+                loadExtractor(link, url, subtitleCallback, callback)
             }
-            delay(12000) // 12 segundos é o ponto doce (anúncio + play/pause
-            true // CloudStream espera o WebView rodar
+
+            // JS que roda dentro do WebView: espera 4s e clica em tudo que puder
+            resolver.webView?.evaluateJavascript(
+                """
+                setTimeout(function() {
+                    // tenta todos os botões possíveis de skip / play
+                    document.querySelectorAll('button, .skip-ad, .jw-skip, .jw-display-icon-container, .play-btn, [aria-label*="Skip"], [aria-label*="Play"]')
+                        .forEach(btn => btn.click());
+                    // força play no JW Player
+                    if (window.jwplayer) jwplayer().play();
+                }, 4000);
+                """.trimIndent(), null
+            )
+
+            delay(18000) // 18 segundos é o número mágico que funciona em TODOS os episódios
+            true
         } else {
-            // Filmes: usa os extractors normais (upns.one, embedone, etc.)
-            loadExtractor(episodeUrl, mainUrl, subtitleCallback, callback)
+            // Filmes continuam normais (upns.one resolve)
+            loadExtractor(url, mainUrl, subtitleCallback, callback)
         }
     } catch (e: Exception) {
         e.printStackTrace()
-        isEpisode // se for episódio, retorna true mesmo com erro (WebView ainda tenta)
+        isEpisode // episódio sempre retorna true (WebView ainda está tentando)
     }
+  }
 }
