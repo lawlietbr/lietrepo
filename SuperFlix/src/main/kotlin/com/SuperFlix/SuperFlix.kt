@@ -63,14 +63,9 @@ class SuperFlix : MainAPI() {
     // 2. mainPage (categorias)
     override val mainPage = listOf(
         MainPageData("Lançamentos", "$mainUrl/lancamentos"),
-        MainPageData("Filmes", "$mainUrl/filmes"),
-        MainPageData("Séries", "$mainUrl/series"),
-        MainPageData("Animes", "$mainUrl/animes"),
-        MainPageData("Ação", "$mainUrl/genero/acao"),
-        MainPageData("Comédia", "$mainUrl/genero/comedia"),
-        MainPageData("Terror", "$mainUrl/genero/terror"),
-        MainPageData("Ficção Científica", "$mainUrl/genero/ficcao-cientifica")
-    )
+        MainPageData("Últimos Filmes", "$mainUrl/filmes"),
+        MainPageData("Últimas Séries", "$mainUrl/series"),
+        MainPageData("Últimos Animes", "$mainUrl/animes"),
 
     // 3. getMainPage()
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
