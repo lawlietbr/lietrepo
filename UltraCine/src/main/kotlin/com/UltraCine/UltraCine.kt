@@ -167,36 +167,56 @@ class UltraCine : MainAPI() {
         }
     }
 
-    // VERSÃO ULTRA SIMPLIFICADA QUE COMPILA
+    // VERSÃO SIMPLES QUE VAMOS TESTAR
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        // LOG PARA VER SE ESTÁ SENDO CHAMADO
+        println("🔥🔥🔥 ULTRA CINE loadLinks CHAMADO! Data: $data")
+        
         if (data.isBlank()) return false
 
         return try {
             // PARA SÉRIES: O data é o episodeId (números)
             if (data.matches(Regex("^\\d+$"))) {
-                // SIMPLES: Tenta carregar via extractor padrão
+                println("🎬 EPISÓDIO DETECTADO: $data")
+                
+                // TESTE DIRETO: Tenta acessar a página do episódio
                 val episodeUrl = "https://assistirseriesonline.icu/episodio/$data"
+                println("🌐 ACESSANDO: $episodeUrl")
                 
                 val res = app.get(episodeUrl, timeout = 30)
-                val doc = res.document
+                val html = res.text
                 
-                // Tenta iframes (isso já funciona para filmes)
-                doc.select("iframe[src]").forEach { iframe ->
-                    val src = iframe.attr("src")
-                    if (src.isNotBlank() && loadExtractor(src, episodeUrl, subtitleCallback, callback)) {
+                // Procura por iframe
+                val iframePattern = Regex("""<iframe[^>]+src=["']([^"']+)["']""")
+                val iframeMatch = iframePattern.find(html)
+                
+                if (iframeMatch != null) {
+                    val iframeSrc = iframeMatch.groupValues[1]
+                    println("🎯 IFRAME ENCONTRADO: $iframeSrc")
+                    
+                    // Tenta carregar via extractor
+                    if (loadExtractor(iframeSrc, episodeUrl, subtitleCallback, callback)) {
+                        println("✅ EXTRACTOR FUNCIONOU!")
                         return true
+                    } else {
+                        println("❌ EXTRACTOR FALHOU")
                     }
+                } else {
+                    println("❌ NENHUM IFRAME ENCONTRADO")
+                    // Mostra um pedaço do HTML para debug
+                    println("📄 HTML (primeiros 1000 chars):")
+                    println(html.take(1000))
                 }
                 
                 return false
             }
             
-            // PARA FILMES (código original que funciona)
+            // PARA FILMES (mantém o original)
             val finalUrl = when {
                 data.contains("ultracine.org/") && data.matches(Regex(".*/\\d+$")) -> {
                     val id = data.substringAfterLast("/")
@@ -205,6 +225,8 @@ class UltraCine : MainAPI() {
                 else -> data
             }
 
+            println("🎥 FILME DETECTADO, URL: $finalUrl")
+            
             val res = app.get(finalUrl, referer = mainUrl, timeout = 30)
             val doc = res.document
             
@@ -226,36 +248,9 @@ class UltraCine : MainAPI() {
             
             false
         } catch (e: Exception) {
+            println("💥 ERRO NO loadLinks: ${e.message}")
             e.printStackTrace()
             false
-        }
-    }
-
-    // FUNÇÕES AUXILIARES (mantidas para referência futura)
-    
-    private fun extractQualityFromUrl(url: String): Int {
-        val qualityPattern = Regex("""/(\d+)p?/""")
-        val match = qualityPattern.find(url)
-
-        if (match != null) {
-            val qualityNum = match.groupValues[1].toIntOrNull()
-            return when (qualityNum) {
-                360 -> 360
-                480 -> 480
-                720 -> 720
-                1080 -> 1080
-                2160 -> 2160
-                else -> Qualities.Unknown.value
-            }
-        }
-
-        return when {
-            url.contains("360p", ignoreCase = true) -> 360
-            url.contains("480p", ignoreCase = true) -> 480
-            url.contains("720p", ignoreCase = true) -> 720
-            url.contains("1080p", ignoreCase = true) -> 1080
-            url.contains("2160p", ignoreCase = true) -> 2160
-            else -> Qualities.Unknown.value
         }
     }
 }
