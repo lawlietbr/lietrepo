@@ -251,8 +251,7 @@ class UltraCine : MainAPI() {
              // Linha ~252:
 // ========== 3. ESTRATÉGIA DE FALLBACK (WebViewResolver) ==========
 // Linha 255: Onde o erro de tipo começa
-if (html.contains("apiblogger.click", ignoreCase = true) || finalUrl.contains("episodio/", ignoreCase = true)) {
-    
+           if ( (html as CharSequence).contains("apiblogger.click", ignoreCase = true) || (finalUrl as CharSequence).contains("episodio/", ignoreCase = true) ) {
     // Linha 257 (A declaração do Resolver, que causa o erro em cascata)
     val resolver = com.lagradost.cloudstream3.network.WebViewResolver(html) 
     
