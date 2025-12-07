@@ -249,18 +249,17 @@ class UltraCine : MainAPI() {
             if (success) return true
 
              // Linha ~252:
+// Linha ~252:
 // ========== 3. ESTRATÉGIA DE FALLBACK (WebViewResolver) ==========
-// VERSÃO À PROVA DE KOTLIN 2.1.0 E DO CI DO CLOUDSTREAM
 if (
     html.contains("apiblogger.click", ignoreCase = true) ||
     finalUrl.contains("episodio/", ignoreCase = true)
 ) {
-    // Forçamos o tipo da string pra CharSequence explicitamente
-    // Isso quebra a ambiguidade que o Kotlin 2.1.0 cria com Regex
-    val htmlCs: CharSequence = html
-    val urlCs: CharSequence = finalUrl
-
-    if ("apiblogger.click" in htmlCs || "episodio/" in urlCs) {
+    // Método 1: Usando contains() diretamente (mais seguro)
+    val shouldUseWebView = html.contains("apiblogger.click", ignoreCase = true) ||
+                          finalUrl.contains("episodio/", ignoreCase = true)
+    
+    if (shouldUseWebView) {
         val resolver = WebViewResolver(html)
 
         val (mainRequest, subRequests) = resolver.resolveUsingWebView(finalUrl)
