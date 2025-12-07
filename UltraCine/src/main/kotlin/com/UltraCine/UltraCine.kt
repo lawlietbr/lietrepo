@@ -154,31 +154,68 @@ class UltraCine : MainAPI() {
 ): Boolean {
     if (data.isBlank()) return false
 
-    // Detecta episódio
-    val isEpisode = data.matches("^\\d+$".toRegex()) || data.contains("assistirseriesonline.icu")
+    val isEpisode = data.matches(Regex("^\\d+$")) || data.contains("assistirseriesonline.icu")
 
-    val url = if (data.matches("^\\d+$".toRegex())) {
+    val url = if (data.matches(Regex("^\\d+$"))) {
         "https://assistirseriesonline.icu/episodio/$data"
     } else {
         data
     }
 
     return try {
+        val headers = mapOf("User-Agent" to "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+        val res = app.get(url, referer = mainUrl, headers = headers)
+        val html = res.text
+
         if (isEpisode) {
-            val res = app.get(url, referer = mainUrl)
-            val resolver = WebViewResolver(res.text)
-            resolver.resolveUsingWebView(url) { link ->
-                // upns.one resolve o link (sem marca d'água)
-                loadExtractor(link, url, subtitleCallback, callback)
-            }
-            delay(20000) // 20s: ad + play auto do site + injection
-            true
-        } else {
-            loadExtractor(url, mainUrl, subtitleCallback, callback)
+            delay(5000) // 5s pra JS inicial carregar o src no JW Player
         }
+
+        // Regex pro JW Player (da tua screenshot: <video class="jw-video jw-reset" src="https://storage.googleapis.com/...")
+        val jwPattern = Regex("""<video[^>]*jw-video[^>]*src=["']([^"']+\.mp4[^"']*)["']""", RegexOption.IGNORE_CASE)
+        jwPattern.find(html)?.groupValues?.get(1)?.let { videoUrl ->
+            if (videoUrl.contains("storage.googleapis.com") && !videoUrl.contains("banner") && !videoUrl.contains("ads")) {
+                val quality = when {
+                    videoUrl.contains("360p") -> 360
+                    videoUrl.contains("480p") -> 480
+                    videoUrl.contains("720p") -> 720
+                    videoUrl.contains("1080p") -> 1080
+                    else -> Qualities.Unknown.value
+                }
+                newExtractorLink(
+                    source = name,
+                    name = "\( name ( \){quality}p)",
+                    url = videoUrl,
+                    referer = url,
+                    quality = quality,
+                    isM3u8 = false
+                ).let { callback(it) }
+                return true
+            }
+        }
+
+        // Fallback MP4 genérico (pra Google Storage direto)
+        val mp4Pattern = Regex("""https?://storage\.googleapis\.com/[^"'<>\s]+\.mp4""")
+        mp4Pattern.findAll(html).forEach { match ->
+            val videoUrl = match.value
+            if (videoUrl.length > 50 && !videoUrl.contains("banner") && !videoUrl.contains("ads")) {
+                newExtractorLink(
+                    source = name,
+                    name = name,
+                    url = videoUrl,
+                    referer = url,
+                    quality = Qualities.Unknown.value,
+                    isM3u8 = false
+                ).let { callback(it) }
+                return true
+            }
+        }
+
+        // Fallback pra loadExtractor (upns.one pra embedone, filmes e alguns episódios)
+        loadExtractor(url, mainUrl, subtitleCallback, callback)
     } catch (e: Exception) {
         e.printStackTrace()
-        isEpisode
+        false
     }
   }
 }
