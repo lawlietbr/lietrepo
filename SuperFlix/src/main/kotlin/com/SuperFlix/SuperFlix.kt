@@ -46,6 +46,10 @@ class SuperFlix : MainAPI() {
         MainPageData("Últimos Animes", "$mainUrl/animes")
     )
 
+    // =======================================================
+    // 💥 CORREÇÃO PRINCIPAL: Estrutura Modular (toSearchResult)
+    // =======================================================
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page == 1) {
             request.data
@@ -62,29 +66,39 @@ class SuperFlix : MainAPI() {
         val response = app.get(url, headers = defaultHeaders)
         val document = response.document
 
+        // Chama a função auxiliar
         val list = document.select("a.card").mapNotNull { element -> 
-            val title = element.attr("title")
-            val url = fixUrl(element.attr("href"))
-            
-            if (title.isNullOrEmpty() || url.isNullOrEmpty()) return@mapNotNull null
-
-            val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
-            val cleanTitle = title.substringBeforeLast("(").trim()
-
-            val type = if (url.contains("/filme/")) TvType.Movie else TvType.TvSeries
-            
-            // CORREÇÃO (Sem variável local posterUrl)
-            return@mapNotNull newSearchResponse(cleanTitle, url, type) {
-                // Extrai o poster URL diretamente aqui
-                this.posterUrl = element.selectFirst("img")?.attr("data-src")
-                    .takeIf { it?.isNotEmpty() == true } 
-                    ?: element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
-                this.year = year
-            }
+            element.toSearchResult()
         }
 
         return newHomePageResponse(request.name, list, list.isNotEmpty())
     }
+
+    // Função auxiliar para extrair dados de busca/home (RESOLVE ERRO DE ESCOPO)
+    private fun Element.toSearchResult(): SearchResponse? {
+        // Usa atributos do elemento pai <a>, que tem a classe .card
+        val title = this.attr("title")
+        val href = fixUrl(this.attr("href"))
+
+        if (title.isNullOrEmpty() || href.isNullOrEmpty()) return null
+
+        // Extração de Poster (Robusta)
+        val posterUrl = this.selectFirst("img")?.attr("data-src")
+            .takeIf { it?.isNotEmpty() == true } 
+            ?: this.selectFirst("img")?.attr("src")
+            ?.let { fixUrl(it) }
+
+        val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
+        val cleanTitle = title.substringBeforeLast("(").trim()
+        val type = if (href.contains("/filme/")) TvType.Movie else TvType.TvSeries
+
+        // Usa newSearchResponse (Construtor unificado)
+        return newSearchResponse(cleanTitle, href, type) {
+            this.posterUrl = posterUrl
+            this.year = year
+        }
+    }
+
 
     override suspend fun search(query: String): List<SearchResponse> {
         val url = "$mainUrl/?s=$query"
@@ -92,25 +106,12 @@ class SuperFlix : MainAPI() {
         val response = app.get(url, headers = defaultHeaders)
         val document = response.document 
 
+        // Chama a função auxiliar
         val results = document.select("a.card, div.card").mapNotNull { element ->
-
-            val title = element.selectFirst(".card-title")?.text()?.trim() ?: return@mapNotNull null
-            
-            val href = element.attr("href").ifEmpty { 
-                element.selectFirst("a")?.attr("href") 
-            } ?: return@mapNotNull null
-
-            val typeText = element.selectFirst(".card-meta")?.text()?.trim() ?: "Filme" 
-            val type = if (typeText.contains("Série", ignoreCase = true)) TvType.TvSeries else TvType.Movie
-
-            // CORREÇÃO (Sem variável local posterUrl)
-            return@mapNotNull newSearchResponse(title, fixUrl(href), type) {
-                this.posterUrl = element.selectFirst("img")?.attr("data-src")
-                    .takeIf { it?.isNotEmpty() == true } 
-                    ?: element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
-            }
+             element.toSearchResult()
         }
 
+        // Deixa o diagnóstico aqui, mas o erro de compilação foi eliminado
         if (results.isEmpty()) {
             val errorHtml = document.html().take(150)
             throw ErrorLoadingException("ERRO BUSCA: Nenhum resultado. HTML Recebido (150 chars): $errorHtml")
@@ -119,6 +120,7 @@ class SuperFlix : MainAPI() {
         return results
     }
 
+    // O código load() não precisava de correção de escopo, apenas o corpo dele.
     override suspend fun load(url: String): LoadResponse {
         val response = app.get(url, headers = defaultHeaders) 
         val document = response.document
@@ -149,7 +151,7 @@ class SuperFlix : MainAPI() {
         // 3. TAGS/GÊNEROS
         val tags = document.select("a.chip").map { it.text().trim() }.filter { it.isNotEmpty() }
 
-        // 4. ELENCO (ATORES): Usando a Estratégia de Exclusão (que compilava)
+        // 4. ELENCO (ATORES): Usando a Estratégia de Exclusão
         val allDivLinks = document.select("div a").map { it.text().trim() }
         val chipTexts = tags.toSet() 
 
