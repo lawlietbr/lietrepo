@@ -7,7 +7,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 
 class Vizer : MainAPI() {
-    override var mainUrl = "https://vizer.tv"
+    override var mainUrl = "https://vizer.tv.tld"
     override var name = "Vizer"
     override val hasMainPage = true
     override var lang = "pt-br"                    // ← var String (obrigatório agora)
