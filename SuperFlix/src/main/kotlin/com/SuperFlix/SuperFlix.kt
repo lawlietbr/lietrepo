@@ -96,26 +96,42 @@ class SuperFlix : MainAPI() {
         return document.select("a.card").mapNotNull { it.toSearchResponse() }
     }
 
-        override suspend fun load(url: String): LoadResponse {
+            override suspend fun load(url: String): LoadResponse {
         val response = app.get(url, headers = defaultHeaders) 
         val document = response.document
 
         val isMovie = url.contains("/filme/")
 
-        // CORREÇÃO DEFINITIVA DO SELETOR: Tentando seletores mais robustos
-        val title = document.selectFirst("h1.entry-title")?.text()?.trim()
-            ?: document.selectFirst("h1")?.text()?.trim() 
-            ?: document.selectFirst("div.col-md-8 h1")?.text()?.trim()
-            ?: throw ErrorLoadingException("Não foi possível extrair o título do filme. Por favor, verifique o seletor H1.")
+        // Tenta extrair o título usando o seletor que você encontrou: .title
+        val dynamicTitle = document.selectFirst(".title")?.text()?.trim()
+
+        val title: String
+        
+        if (dynamicTitle.isNullOrEmpty()) {
+            // Se o seletor falhar (pois é carregado por JS), extraímos da tag <title>
+            val fullTitle = document.selectFirst("title")?.text()?.trim()
+                ?: throw ErrorLoadingException("Não foi possível extrair a tag <title>.")
+
+            // Limpa a string: Remove "Assistir" no início e "Grátis..." no fim.
+            title = fullTitle.substringAfter("Assistir").substringBefore("Grátis").trim()
+                .ifEmpty { fullTitle.substringBefore("Grátis").trim() } 
+        } else {
+            // Se o seletor .title funcionou, usamos ele
+            title = dynamicTitle
+        }
+        
+        // --- CONTINUAÇÃO DA EXTRAÇÃO ---
             
-        // O restante dos seletores de poster, plot e tags também estão sendo corrigidos
         val posterUrl = document.selectFirst("div.poster img")?.attr("src")?.let { fixUrl(it) }
-        // Seletor de plot corrigido (assumindo que seja o primeiro parágrafo após a sinopse)
-        val plot = document.selectFirst("div.col-md-8 p:nth-child(2)")?.text()?.trim() 
-            ?: document.selectFirst("p.text-gray-400")?.text()?.trim()
-            ?: document.selectFirst("div.mt-4 p")?.text()?.trim()
+
+        // Mantemos a extração da sinopse mais robusta
+        val plot = document.selectFirst("p.text-gray-400")?.text()?.trim() 
+            ?: document.selectFirst("div.col-md-8 p:nth-child(2)")?.text()?.trim()
+            ?: "Sinopse não encontrada (Conteúdo carregado dinamicamente)."
 
         val tags = document.select("a[href*=/genero/]").map { it.text().trim() }
+
+        // O ano será extraído do título final
         val year = title.substringAfterLast("(").substringBeforeLast(")").toIntOrNull()
 
         val type = if (isMovie) TvType.Movie else TvType.TvSeries
@@ -146,6 +162,7 @@ class SuperFlix : MainAPI() {
             }
         }
     }
+
 
     override suspend fun loadLinks(
         data: String,
