@@ -14,7 +14,8 @@ class SuperFlix : MainAPI() {
     override var mainUrl = "https://superflix21.lol"
     override var name = "SuperFlix"
     override val hasMainPage = true
-    override val lang = "pt"
+    // CORREÇÃO 1: 'val' alterado para 'var'
+    override var lang = "pt"
     override val supportedTypes = setOf(
         TvType.Movie,
         TvType.TvSeries
@@ -33,7 +34,8 @@ class SuperFlix : MainAPI() {
 
         val type = if (url.contains("/filme/")) TvType.Movie else TvType.TvSeries
 
-        return newAnimeSearchResponse(cleanTitle, url, type) {
+        // Usando new*SearchResponse correto
+        return newMovieSearchResponse(cleanTitle, url, type) {
             this.posterUrl = posterUrl
             this.year = year
         }
@@ -131,17 +133,19 @@ class SuperFlix : MainAPI() {
         } else {
             val seasons = document.select("div#season-tabs button").mapIndexed { index, element ->
                 val seasonName = element.text().trim()
-                // A URL de detalhes da série é a mesma para todas as temporadas,
-                // a lista de episódios é carregada dinamicamente ou está na mesma página.
-                // Usaremos a URL base da série e trataremos os episódios em loadLinks.
-                Episode(
-                    name = seasonName,
-                    season = index + 1,
+                // CORREÇÃO 2: Usando newEpisode em vez do construtor deprecated
+                newEpisode(url) {
+                    name = seasonName
+                    season = index + 1
+                    episode = 1 // Placeholder, já que o site não lista aqui
                     data = url // A URL da série será usada para carregar os links
-                )
+                }
             }
 
-            newTvSeriesLoadResponse(title, url, type, seasons.map { listOf(it) }) {
+            // CORREÇÃO 3: Mapeando List<Episode> para List<List<Episode>>
+            val episodes = seasons.map { listOf(it) }
+
+            newTvSeriesLoadResponse(title, url, type, episodes) {
                 this.posterUrl = posterUrl
                 this.plot = plot
                 this.tags = tags
