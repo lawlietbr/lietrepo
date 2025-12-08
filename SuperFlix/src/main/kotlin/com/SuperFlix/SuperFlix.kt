@@ -44,16 +44,22 @@ class SuperFlix : MainAPI() {
                 val href = link.attr("href")
                 println("SuperFlix: getMainPage - Fallback - Link encontrado: $href")
                 if (href.isNotBlank() && !href.contains("#")) {
-                    val title = link.selectFirst("img")?.attr("alt")
-                        ?: link.selectFirst(".rec-title, .title, h2, h3)")?.text()
-                        ?: href.substringAfterLast("/").replace("-", " ").replace(Regex("\\d{4}$"), "").trim()
+                    val imgElement = link.selectFirst("img")
+                    val altTitle = imgElement?.attr("alt") ?: ""
+                    
+                    val titleElement = link.selectFirst(".rec-title, .title, h2, h3")
+                    val elementTitle = titleElement?.text() ?: ""
+                    
+                    val title = if (altTitle.isNotBlank()) altTitle
+                        else if (elementTitle.isNotBlank()) elementTitle
+                        else href.substringAfterLast("/").replace("-", " ").replace(Regex("\\d{4}$"), "").trim()
 
                     println("SuperFlix: getMainPage - Fallback - Título extraído: $title")
                     
                     if (title.isNotBlank()) {
                         val cleanTitle = title.replace(Regex("\\(\\d{4}\\)"), "").trim()
                         val year = Regex("\\((\\d{4})\\)").find(title)?.groupValues?.get(1)?.toIntOrNull()
-                        val poster = link.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+                        val poster = imgElement?.attr("src")?.let { fixUrl(it) }
                         val isSerie = href.contains("/serie/")
 
                         println("SuperFlix: getMainPage - Fallback - Dados: cleanTitle=$cleanTitle, year=$year, isSerie=$isSerie")
@@ -84,7 +90,8 @@ class SuperFlix : MainAPI() {
     private fun Element.toSearchResult(): SearchResponse? {
         println("SuperFlix: toSearchResult - Iniciando para elemento: ${this.tagName()}")
         
-        val title = selectFirst(".rec-title, .movie-title, h2, h3, .title")?.text()
+        val titleElement = selectFirst(".rec-title, .movie-title, h2, h3, .title")
+        val title = titleElement?.text()
             ?: selectFirst("img")?.attr("alt")
             ?: return null.also { println("SuperFlix: toSearchResult - Título não encontrado") }
 
@@ -96,10 +103,15 @@ class SuperFlix : MainAPI() {
 
         println("SuperFlix: toSearchResult - href encontrado: $href")
 
-        val poster = selectFirst("img")?.attr("src")
-            ?.takeIf { it.isNotBlank() }
-            ?.let { fixUrl(it) }
-            ?: selectFirst("img")?.attr("data-src")?.let { fixUrl(it) }
+        val imgElement = selectFirst("img")
+        val posterSrc = imgElement?.attr("src")
+        val posterDataSrc = imgElement?.attr("data-src")
+        
+        val poster = if (posterSrc.isNullOrBlank()) {
+            posterDataSrc?.let { fixUrl(it) }
+        } else {
+            fixUrl(posterSrc)
+        }
 
         println("SuperFlix: toSearchResult - Poster encontrado: $poster")
 
@@ -170,7 +182,10 @@ class SuperFlix : MainAPI() {
         println("SuperFlix: load - JSON-LD extraído: title=${jsonLd.title}, type=${jsonLd.type}")
 
         // Usar valores extraídos do JSON-LD ou fallback para scraping
-        val title = jsonLd.title ?: document.selectFirst("h1, .title")?.text() ?: return null.also { 
+        val titleElement = document.selectFirst("h1, .title")
+        val scrapedTitle = titleElement?.text()
+        
+        val title = jsonLd.title ?: scrapedTitle ?: return null.also { 
             println("SuperFlix: load - ERRO: Título não encontrado")
         }
         
@@ -179,14 +194,21 @@ class SuperFlix : MainAPI() {
         val year = jsonLd.year ?: Regex("\\((\\d{4})\\)").find(title)?.groupValues?.get(1)?.toIntOrNull()
         println("SuperFlix: load - Ano: $year")
 
+        val ogImageElement = document.selectFirst("meta[property='og:image']")
+        val ogImage = ogImageElement?.attr("content")
+        
         val poster = jsonLd.posterUrl?.replace("/w500/", "/original/")
-            ?: document.selectFirst("meta[property='og:image']")?.attr("content")?.let { fixUrl(it) }
-            ?.replace("/w500/", "/original/")
+            ?: ogImage?.let { fixUrl(it) }?.replace("/w500/", "/original/")
         
         println("SuperFlix: load - Poster: $poster")
 
-        val plot = jsonLd.description ?: document.selectFirst("meta[name='description']")?.attr("content")
-            ?: document.selectFirst(".syn, .description")?.text()
+        val descriptionElement = document.selectFirst("meta[name='description']")
+        val metaDescription = descriptionElement?.attr("content")
+        
+        val synopsisElement = document.selectFirst(".syn, .description")
+        val synopsisText = synopsisElement?.text()
+        
+        val plot = jsonLd.description ?: metaDescription ?: synopsisText
         
         println("SuperFlix: load - Plot (${plot?.length ?: 0} chars): ${plot?.take(100)}...")
 
