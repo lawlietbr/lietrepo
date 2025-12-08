@@ -291,10 +291,13 @@ class SuperFlix : MainAPI() {
     if (data.isBlank()) return false
     
     return try {
-        // 🔥 SE JÁ FOR LINK .m3u8 DIRETO (raro)
+        // 🔥 SE JÁ FOR LINK .m3u8 DIRETO (raro - 1% dos casos)
         if (data.contains(".m3u8") && data.contains("rcr22")) {
             val quality = extractQualityFromUrl(data)
-            val link = newExtractorLink(
+            
+            // ✅ Use ExtractorLink mesmo com warning
+            @Suppress("DEPRECATION")
+            val link = ExtractorLink(
                 source = name,
                 name = "$name (${quality}p)",
                 url = data,
@@ -302,27 +305,26 @@ class SuperFlix : MainAPI() {
                 quality = quality,
                 isM3u8 = true
             )
+            
             callback.invoke(link)
             return true
         }
         
-        // 🔥🔥🔥 SOLUÇÃO PRINCIPAL: SE FOR URL DO FEMBED 🔥🔥🔥
+        // 🔥🔥🔥 99% DOS CASOS: URL DO FEMBED 🔥🔥🔥
         if (data.contains("fembed.sx")) {
             // DELEGA para o extractor do Fembed!
             return loadExtractor(data, mainUrl, subtitleCallback, callback)
         }
         
-        // 🔥 SE FOR URL DO SUPERFLIX
+        // 🔥 SE FOR URL DO SUPERFLIX (procura Fembed na página)
         val finalUrl = if (data.startsWith("http")) data else fixUrl(data)
         val res = app.get(finalUrl, referer = mainUrl, timeout = 30)
         val doc = res.document
         val html = res.text
         
-        // Procurar URL do Fembed
         val fembedUrl = findFembedUrlInPage(doc, html)
         
         if (fembedUrl != null) {
-            // 🔥 DELEGA para o extractor do Fembed!
             return loadExtractor(fembedUrl, finalUrl, subtitleCallback, callback)
         }
         
