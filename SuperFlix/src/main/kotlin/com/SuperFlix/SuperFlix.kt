@@ -293,7 +293,7 @@ class SuperFlix : MainAPI() {
         
         println("SuperFlix: PASSO 2 - Analisando resposta...")
         
-        val m3u8Url = extractM3u8FromApiResponse(apiText)
+        val m3u8Url = extractM3u8FromApiResponse(apiResponse)
         if (m3u8Url != null) {
             println("SuperFlix: URL m3u8 encontrada: $m3u8Url")
             return createExtractorLink(m3u8Url, "Dublado", baseUrl, callback)
@@ -321,7 +321,7 @@ class SuperFlix : MainAPI() {
         val subResponse = app.post(apiUrl, headers = headers, data = subPostData)
         if (subResponse.isSuccessful) {
             val subText = subResponse.text
-            val subM3u8Url = extractM3u8FromApiResponse(subText)
+            val subM3u8Url = extractM3u8FromApiResponse(subResponse)
             
             if (subM3u8Url != null) {
                 println("SuperFlix: URL Legendado encontrada: $subM3u8Url")
@@ -333,30 +333,36 @@ class SuperFlix : MainAPI() {
         return false
     }
 
-    private fun extractM3u8FromApiResponse(responseText: String): String? {
-        try {
-            // Usar parsedSafe em vez de parseJson
-            val json = app.parseJson<Map<String, Any>>(responseText)
+    private fun extractM3u8FromApiResponse(response: SafeAPIResponse): String? {
+        // Primeiro tentar parsear como JSON
+        val json = response.parsedSafe<Map<String, Any>>()
+        
+        if (json != null) {
+            println("SuperFlix: JSON parseado com sucesso")
             
             val possibleFields = listOf("file", "url", "src", "source", "hls", "m3u8", "playlist", "stream", "video")
             
             for (field in possibleFields) {
                 val value = json[field]
                 if (value is String && value.contains(".m3u8")) {
+                    println("SuperFlix: Encontrado no campo '$field': $value")
                     return fixUrl(value)
                 }
             }
             
-            // Corrigir a iteração no mapa
-            json.entries.forEach { entry ->
+            // Procurar em todos os campos
+            for (entry in json) {
                 val value = entry.value
                 if (value is String && value.contains("http") && value.contains(".m3u8")) {
+                    println("SuperFlix: Encontrado no campo '${entry.key}': $value")
                     return fixUrl(value)
                 }
             }
-        } catch (e: Exception) {
-            println("SuperFlix: Não é JSON válido, tentando padrões: ${e.message}")
         }
+        
+        // Se não encontrou no JSON, procurar no texto bruto
+        val responseText = response.text
+        println("SuperFlix: Procurando padrões no texto bruto (${responseText.length} chars)")
         
         val patterns = listOf(
             Regex("""https?://[^"'\s]+\.m3u8[^"'\s]*"""),
@@ -471,17 +477,16 @@ class SuperFlix : MainAPI() {
         val quality = determineQualityFromUrl(url)
         
         // Usar a sintaxe correta do newExtractorLink
-        val extractorLink = newExtractorLink(
-            source = name,
-            name = "$name ($language)",
-            url = url
-        ) {
-            this.referer = referer
-            this.quality = quality
-            this.isM3u8 = true
-        }
-        
-        callback(extractorLink)
+        callback.invoke(
+            newExtractorLink(
+                source = name,
+                name = "$name ($language)",
+                url = url,
+                referer = referer,
+                quality = quality,
+                isM3u8 = true
+            )
+        )
         
         println("SuperFlix: Link adicionado - $language ($quality)")
         return true
