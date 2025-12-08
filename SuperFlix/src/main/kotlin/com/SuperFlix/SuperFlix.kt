@@ -148,7 +148,6 @@ class SuperFlix : MainAPI() {
                 addActors(actors)
             }
         } else {
-            // Para filmes, o link vai ser encontrado no loadLinks
             newMovieLoadResponse(title, url, TvType.Movie, url) {
                 this.posterUrl = poster
                 this.year = year
@@ -163,13 +162,11 @@ class SuperFlix : MainAPI() {
     private fun extractEpisodesFromPage(document: org.jsoup.nodes.Document, baseUrl: String): List<Episode> {
         val episodes = mutableListOf<Episode>()
         
-        // Procurar por botões PLAY
         document.select("button.bd-play[data-url], button[data-url]").forEach { button ->
             val dataUrl = button.attr("data-url")
             val season = button.attr("data-season").toIntOrNull() ?: 1
             val episodeNum = button.attr("data-ep").toIntOrNull() ?: 1
             
-            // Usar a data-url como identificador
             episodes.add(
                 newEpisode(dataUrl) {
                     this.name = "Episódio $episodeNum"
@@ -268,35 +265,23 @@ class SuperFlix : MainAPI() {
             // 🔥 SE JÁ FOR LINK .m3u8 DIRETO
             if (data.contains(".m3u8") && data.contains("rcr22")) {
                 val quality = extractQualityFromM3u8(data)
-                val link = newExtractorLink(
-                    source = name,
-                    name = "$name (${quality}p)",
-                    url = data,
-                    referer = mainUrl,
-                    quality = quality,
-                    isM3u8 = true
+                callback.invoke(
+                    ExtractorLink(
+                        source = name,
+                        name = "$name (${quality}p)",
+                        url = data,
+                        referer = mainUrl,
+                        quality = quality,
+                        isM3u8 = true
+                    )
                 )
-                callback.invoke(link)
                 return true
             }
             
             // 🔥 SE FOR DATA-URL (botão play)
-            if (data.contains("fembed.sx") || data.contains("data-url")) {
-                // Fazer requisição para a página do episódio
-                val episodeUrl = if (data.contains("fembed.sx")) {
-                    // É uma data-url do Fembed, precisamos extrair o ID
-                    val fembedId = extractFembedId(data)
-                    if (fembedId != null) {
-                        // Criar URL da página do episódio
-                        "$mainUrl/episodio/$fembedId"
-                    } else {
-                        data
-                    }
-                } else {
-                    data
-                }
-                
-                return extractDirectVideoLinks(episodeUrl, callback)
+            if (data.contains("fembed.sx")) {
+                // Tentar extrair vídeo da página do Fembed
+                return extractFromFembedPage(data, callback)
             }
             
             // 🔥 SE FOR URL DO SUPERFLIX
@@ -308,7 +293,55 @@ class SuperFlix : MainAPI() {
         }
     }
     
-    // 🔥 NOVA FUNÇÃO: EXTRAIR LINKS DE VÍDEO DIRETOS
+    // 🔥 EXTRAIR VÍDEOS DE PÁGINA DO FEMBED
+    private suspend fun extractFromFembedPage(url: String, callback: (ExtractorLink) -> Unit): Boolean {
+        return try {
+            val res = app.get(url, referer = mainUrl, timeout = 30)
+            val html = res.text
+            
+            // Procurar links .m3u8 em scripts do Fembed
+            val patterns = listOf(
+                Regex("""sources\s*:\s*\[([^\]]+)\]"""),
+                Regex("""file\s*:\s*["'](https?://[^"']+\.m3u8[^"']*)["']"""),
+                Regex("""(https?://[^"'\s]+\.m3u8[^"'\s]*)""")
+            )
+            
+            for (pattern in patterns) {
+                val match = pattern.find(html)
+                if (match != null) {
+                    var m3u8Url = if (match.groupValues.size > 1) match.groupValues[1] else match.value
+                    
+                    // Limpar URL se for JSON array
+                    if (m3u8Url.contains("[")) {
+                        val urlMatch = Regex("""https?://[^"',\s]+\.m3u8[^"',\s]*""").find(m3u8Url)
+                        m3u8Url = urlMatch?.value ?: continue
+                    }
+                    
+                    if (m3u8Url.isNotBlank()) {
+                        val quality = extractQualityFromM3u8(m3u8Url)
+                        callback.invoke(
+                            ExtractorLink(
+                                source = name,
+                                name = "$name (${quality}p)",
+                                url = m3u8Url,
+                                referer = mainUrl,
+                                quality = quality,
+                                isM3u8 = true
+                            )
+                        )
+                        return true
+                    }
+                }
+            }
+            
+            false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    
+    // 🔥 EXTRAIR LINKS DIRETOS DA PÁGINA
     private suspend fun extractDirectVideoLinks(url: String, callback: (ExtractorLink) -> Unit): Boolean {
         return try {
             val res = app.get(url, referer = mainUrl, timeout = 30)
@@ -329,44 +362,33 @@ class SuperFlix : MainAPI() {
                     val m3u8Url = if (match.groupValues.size > 1) match.groupValues[1] else match.value
                     if (m3u8Url.isNotBlank()) {
                         val quality = extractQualityFromM3u8(m3u8Url)
-                        
-                        // Criar link HLS
-                        val link = newExtractorLink(
-                            source = name,
-                            name = "$name (${quality}p)",
-                            url = m3u8Url,
-                            referer = mainUrl,
-                            quality = quality,
-                            isM3u8 = true
+                        callback.invoke(
+                            ExtractorLink(
+                                source = name,
+                                name = "$name (${quality}p)",
+                                url = m3u8Url,
+                                referer = mainUrl,
+                                quality = quality,
+                                isM3u8 = true
+                            )
                         )
-                        callback.invoke(link)
                         return true
                     }
                 }
             }
             
-            // 🔥 PADRÃO 2: JW Player ou player similar
-            val jwPlayerPatterns = listOf(
-                Regex("""jwplayer\(["'][^"']+["']\)\.setup\(({[^}]+})\)"""),
-                Regex("""playerInstance\.setup\(({[^}]+})\)"""),
-                Regex("""var\s+player\s*=\s*new\s+Playerjs\(({[^}]+})\)"""),
-                Regex("""sources\s*:\s*\[([^\]]+)\]""")
-            )
-            
-            for (pattern in jwPlayerPatterns) {
-                val match = pattern.find(html)
-                if (match != null) {
-                    val playerConfig = match.groupValues[1]
-                    
-                    // Procurar file/source no JSON do player
-                    val fileMatch = Regex("""file\s*:\s*["'](https?://[^"']+\.(?:m3u8|mp4)[^"']*)["']""").find(playerConfig)
-                    val sourceMatch = Regex("""src\s*:\s*["'](https?://[^"']+\.(?:m3u8|mp4)[^"']*)["']""").find(playerConfig)
-                    
-                    val videoUrl = fileMatch?.groupValues?.get(1) ?: sourceMatch?.groupValues?.get(1)
-                    if (videoUrl != null && videoUrl.contains(".m3u8")) {
-                        val quality = extractQualityFromM3u8(videoUrl)
-                        
-                        val link = newExtractorLink(
+            // 🔥 PADRÃO 2: JW Player config
+            val jwPlayerPattern = Regex("""jwplayer\(["'][^"']+["']\)\.setup\(({[^}]+})\)""")
+            val jwMatch = jwPlayerPattern.find(html)
+            if (jwMatch != null) {
+                val playerConfig = jwMatch.groupValues[1]
+                val fileMatch = Regex("""file\s*:\s*["'](https?://[^"']+\.(?:m3u8|mp4)[^"']*)["']""").find(playerConfig)
+                val videoUrl = fileMatch?.groupValues?.get(1)
+                
+                if (videoUrl != null && videoUrl.contains(".m3u8")) {
+                    val quality = extractQualityFromM3u8(videoUrl)
+                    callback.invoke(
+                        ExtractorLink(
                             source = name,
                             name = "$name (${quality}p)",
                             url = videoUrl,
@@ -374,13 +396,12 @@ class SuperFlix : MainAPI() {
                             quality = quality,
                             isM3u8 = true
                         )
-                        callback.invoke(link)
-                        return true
-                    }
+                    )
+                    return true
                 }
             }
             
-            // 🔥 PADRÃO 3: Scripts com variáveis de vídeo
+            // 🔥 PADRÃO 3: Scripts com variáveis
             val scriptPatterns = listOf(
                 Regex("""var\s+videoUrl\s*=\s*["'](https?://[^"']+\.m3u8[^"']*)["']"""),
                 Regex("""var\s+src\s*=\s*["'](https?://[^"']+\.m3u8[^"']*)["']"""),
@@ -392,16 +413,16 @@ class SuperFlix : MainAPI() {
                 if (match != null) {
                     val videoUrl = match.groupValues[1]
                     val quality = extractQualityFromM3u8(videoUrl)
-                    
-                    val link = newExtractorLink(
-                        source = name,
-                        name = "$name (${quality}p)",
-                        url = videoUrl,
-                        referer = mainUrl,
-                        quality = quality,
-                        isM3u8 = true
+                    callback.invoke(
+                        ExtractorLink(
+                            source = name,
+                            name = "$name (${quality}p)",
+                            url = videoUrl,
+                            referer = mainUrl,
+                            quality = quality,
+                            isM3u8 = true
+                        )
                     )
-                    callback.invoke(link)
                     return true
                 }
             }
@@ -414,7 +435,7 @@ class SuperFlix : MainAPI() {
         }
     }
     
-    // 🔥 FUNÇÃO PARA EXTRAIR QUALIDADE DA URL .m3u8
+    // 🔥 FUNÇÃO PARA EXTRAIR QUALIDADE
     private fun extractQualityFromM3u8(url: String): Int {
         return when {
             url.contains("/2160/") || url.contains("2160p") -> 2160
@@ -424,22 +445,5 @@ class SuperFlix : MainAPI() {
             url.contains("/360/") || url.contains("360p") -> 360
             else -> Qualities.Unknown.value
         }
-    }
-    
-    // 🔥 FUNÇÃO PARA EXTRAIR ID DO FEMBED (se ainda for usado)
-    private fun extractFembedId(url: String): String? {
-        val patterns = listOf(
-            Regex("""fembed\.sx/e/(\d+)/?"""),
-            Regex("""fembed\.com/v/(\d+)/?"""),
-            Regex("""fembed\.sx/f/(\d+)/?""")
-        )
-        
-        patterns.forEach { pattern ->
-            pattern.find(url)?.groupValues?.get(1)?.let { id ->
-                return id
-            }
-        }
-        
-        return null
     }
 }
