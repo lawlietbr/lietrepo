@@ -173,7 +173,7 @@ class SuperFlix : MainAPI() {
 
             val parent = button.parents().find { it.hasClass("episode-item") || it.hasClass("episode") }
             parent?.let {
-                val titleElement = it.selectFirst(".ep-title, .title, .name, h3, h4)
+                val titleElement = it.selectFirst(".ep-title, .title, .name, h3, h4")
                 if (titleElement != null) {
                     episodeTitle = titleElement.text().trim()
                 }
@@ -311,16 +311,16 @@ class SuperFlix : MainAPI() {
             videoUrls.forEachIndexed { index, (url, quality) ->
                 println("SuperFlix: Vídeo $index -> ${quality}p: $url")
                 
-                // Usar newExtractorLink com a assinatura correta
-                newExtractorLink(
-                    source = name,
+                // Criar ExtractorLink usando a versão mais compatível
+                val extractorLink = ExtractorLink(
                     name = "$name (Dublado)",
+                    source = name,
                     url = url,
                     referer = "https://fembed.sx/e/$videoId",
                     quality = quality,
-                    isM3u8 = url.contains(".m3u8"),
-                    headers = mapOf("Referer" to "https://fembed.sx/e/$videoId")
-                )?.let { callback.invoke(it) }
+                    isM3u8 = url.contains(".m3u8")
+                )
+                callback(extractorLink)
             }
             
             // Também tentar Legendado
@@ -401,15 +401,15 @@ class SuperFlix : MainAPI() {
                 legVideos.forEach { (url, quality) ->
                     println("SuperFlix: Legendado encontrado -> ${quality}p: $url")
                     
-                    newExtractorLink(
-                        source = name,
+                    val extractorLink = ExtractorLink(
                         name = "$name (Legendado)",
+                        source = name,
                         url = url,
                         referer = "https://fembed.sx/e/$videoId",
                         quality = quality,
-                        isM3u8 = url.contains(".m3u8"),
-                        headers = mapOf("Referer" to "https://fembed.sx/e/$videoId")
-                    )?.let { callback.invoke(it) }
+                        isM3u8 = url.contains(".m3u8")
+                    )
+                    callback(extractorLink)
                 }
             }
         } catch (e: Exception) {
@@ -439,15 +439,15 @@ class SuperFlix : MainAPI() {
                 if (downloadUrl != null && downloadUrl.isNotBlank()) {
                     println("SuperFlix: Download Dublado encontrado: $downloadUrl")
                     
-                    newExtractorLink(
-                        source = name,
+                    val extractorLink = ExtractorLink(
                         name = "$name (Download Dublado)",
+                        source = name,
                         url = downloadUrl,
                         referer = "https://fembed.sx/e/$videoId",
                         quality = Qualities.P1080.value,
-                        isM3u8 = downloadUrl.contains(".m3u8"),
-                        headers = mapOf("Referer" to "https://fembed.sx/e/$videoId")
-                    )?.let { callback.invoke(it) }
+                        isM3u8 = downloadUrl.contains(".m3u8")
+                    )
+                    callback(extractorLink)
                     return true
                 }
             }
@@ -465,15 +465,15 @@ class SuperFlix : MainAPI() {
                 if (downloadUrl != null && downloadUrl.isNotBlank()) {
                     println("SuperFlix: Download Legendado encontrado: $downloadUrl")
                     
-                    newExtractorLink(
-                        source = name,
+                    val extractorLink = ExtractorLink(
                         name = "$name (Download Legendado)",
+                        source = name,
                         url = downloadUrl,
                         referer = "https://fembed.sx/e/$videoId",
                         quality = Qualities.P1080.value,
-                        isM3u8 = downloadUrl.contains(".m3u8"),
-                        headers = mapOf("Referer" to "https://fembed.sx/e/$videoId")
-                    )?.let { callback.invoke(it) }
+                        isM3u8 = downloadUrl.contains(".m3u8")
+                    )
+                    callback(extractorLink)
                     return true
                 }
             }
