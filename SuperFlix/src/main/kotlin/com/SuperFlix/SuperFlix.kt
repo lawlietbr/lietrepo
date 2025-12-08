@@ -288,14 +288,16 @@ class SuperFlix : MainAPI() {
                 val m3u8Url = findM3u8Url(responseText)
                 if (m3u8Url != null) {
                     println("SuperFlix: URL encontrada: $m3u8Url")
-                    return addVideoLink(m3u8Url, "Dublado", baseUrl, callback)
+                    addVideoLink(m3u8Url, "Dublado", baseUrl, callback)
+                    return true
                 }
                 
                 // Se não encontrou, tentar construir baseado no padrão
                 val builtUrl = buildDefaultM3u8Url(videoId)
                 if (builtUrl != null) {
                     println("SuperFlix: Usando URL padrão: $builtUrl")
-                    return addVideoLink(builtUrl, "Dublado", baseUrl, callback)
+                    addVideoLink(builtUrl, "Dublado", baseUrl, callback)
+                    return true
                 }
             }
         } catch (e: Exception) {
@@ -320,7 +322,8 @@ class SuperFlix : MainAPI() {
                 
                 if (m3u8Url != null) {
                     println("SuperFlix: URL Legendado encontrada: $m3u8Url")
-                    return addVideoLink(m3u8Url, "Legendado", baseUrl, callback)
+                    addVideoLink(m3u8Url, "Legendado", baseUrl, callback)
+                    return true
                 }
             }
         } catch (e: Exception) {
@@ -332,7 +335,8 @@ class SuperFlix : MainAPI() {
         val fallbackUrl = buildDefaultM3u8Url(videoId)
         if (fallbackUrl != null) {
             println("SuperFlix: Usando fallback: $fallbackUrl")
-            return addVideoLink(fallbackUrl, "Fallback", baseUrl, callback)
+            addVideoLink(fallbackUrl, "Fallback", baseUrl, callback)
+            return true
         }
         
         println("SuperFlix: Nenhum link encontrado")
@@ -424,24 +428,19 @@ class SuperFlix : MainAPI() {
         language: String,
         referer: String,
         callback: (ExtractorLink) -> Unit
-    ): Boolean {
+    ) {
         val quality = determineQualityFromUrl(url)
         
-        // Usar a sintaxe CORRETA do newExtractorLink
-        callback(
-            newExtractorLink(
-                source = name,
-                name = "$name ($language)",
-                url = url
-            ) {
-                this.referer = referer
-                this.quality = quality
-                this.isM3u8 = true
-            }
+        // Usar a sintaxe CORRETA conforme seu exemplo
+        val link = newExtractorLink(
+            source = this.name,
+            name = "$name ($language)",
+            url = url
         )
         
+        callback.invoke(link)
+        
         println("SuperFlix: Link adicionado - $language ($quality)")
-        return true
     }
 
     private fun determineQualityFromUrl(url: String): Int {
