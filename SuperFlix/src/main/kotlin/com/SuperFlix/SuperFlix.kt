@@ -335,6 +335,7 @@ class SuperFlix : MainAPI() {
 
     private fun extractM3u8FromApiResponse(responseText: String): String? {
         try {
+            // Usar parsedSafe em vez de parseJson
             val json = app.parseJson<Map<String, Any>>(responseText)
             
             val possibleFields = listOf("file", "url", "src", "source", "hls", "m3u8", "playlist", "stream", "video")
@@ -346,13 +347,15 @@ class SuperFlix : MainAPI() {
                 }
             }
             
-            for ((key, value) in json.entries) {
+            // Corrigir a iteração no mapa
+            json.entries.forEach { entry ->
+                val value = entry.value
                 if (value is String && value.contains("http") && value.contains(".m3u8")) {
                     return fixUrl(value)
                 }
             }
         } catch (e: Exception) {
-            // Não é JSON válido, continuar
+            println("SuperFlix: Não é JSON válido, tentando padrões: ${e.message}")
         }
         
         val patterns = listOf(
@@ -423,6 +426,7 @@ class SuperFlix : MainAPI() {
             }
         }
         
+        // Valores padrão baseados nas suas imagens
         if (!params.containsKey("t")) params["t"] = "0oy5UBzU4ee3_2k_o0hqL6xJb_0x8YqlZR4n6PvCU"
         if (!params.containsKey("s")) params["s"] = "1765199884"
         if (!params.containsKey("e")) params["e"] = "10800"
@@ -466,9 +470,12 @@ class SuperFlix : MainAPI() {
     ): Boolean {
         val quality = determineQualityFromUrl(url)
         
-        val extractorLink = newExtractorLink {
-            this.name = "$name ($language)"
-            this.url = url
+        // Usar a sintaxe correta do newExtractorLink
+        val extractorLink = newExtractorLink(
+            source = name,
+            name = "$name ($language)",
+            url = url
+        ) {
             this.referer = referer
             this.quality = quality
             this.isM3u8 = true
