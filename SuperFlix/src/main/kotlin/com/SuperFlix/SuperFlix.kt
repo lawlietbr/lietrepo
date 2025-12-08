@@ -4,7 +4,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.ExtractorLink.Companion.newExtractorLink
-import com.lagradost.cloudstream3.utils.AppUtils.base64Encode // Resolvido: import AppUtils
+import com.lagradost.cloudstream3.utils.AppUtils.base64Encode // Resolvido: import explícito
 import org.jsoup.nodes.Element
 import java.net.URLEncoder
 
@@ -266,7 +266,7 @@ class SuperFlix : MainAPI() {
             val apiPath = apiMatch?.groupValues?.get(1)?.replace("\\/", "/") ?: return null
             val apiFullUrl = fixUrl(apiPath)
             
-            // 🔥 CORREÇÃO 1: Conversão para ByteArray para base64Encode
+            // CORREÇÃO: Conversão para ByteArray para base64Encode
             val keyB64 = base64Encode(key.toByteArray()) 
             
             val postBody = mapOf(
@@ -293,133 +293,120 @@ class SuperFlix : MainAPI() {
     }
 
     // Função para extrair o link .m3u8 do Fembed (Imita o Web Caster/Player)
-    // ==================== SUBSTITUA ESTA FUNÇÃO INTEIRA ====================
-private suspend fun manualFembedExtractor(
-    fembedUrl: String,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
-    return try {
-        // 1. Extrair o ID do Fembed (/v/ ou /e/)
-        val fembedId = Regex("""/(?:e|v)/([a-zA-Z0-9]+)""")
-            .find(fembedUrl)?.groupValues?.get(1) ?: return false
+    private suspend fun manualFembedExtractor(
+        fembedUrl: String,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        return try {
+            // 1. Extrair o ID do Fembed
+            val fembedId = Regex("""/(?:e|v)/([a-zA-Z0-9]+)/""")
+                .find(fembedUrl)?.groupValues?.get(1)
+                ?: return false 
 
-        // 2. Extrair domínio da URL original (ex: fembed.sx, gcloud.live, femax20.com, etc.)
-        val domain = Regex("""https?://([^/]+)""").find(fembedUrl)?.groupValues?.get(1) ?: "fembed.sx"
-        val apiSourceUrl = "https://$domain/api/source/$fembedId"
+            val apiSourceUrl = "https://fembed.sx/api/source/$fembedId"
+            
+            // 2. Headers e Body para o POST Request (IMTA O WEB CASTER/PLAYER)
+            val headers = mapOf(
+                "Accept" to "application/json, text/javascript, */*; q=0.01", 
+                "X-Requested-With" to "XMLHttpRequest",
+                "Referer" to fembedUrl, // CRUCIAL para liberar o link
+            )
+            
+            val postBody = mapOf("id" to fembedId)
+            
+            // 3. Realizar o POST request
+            val postRes = app.post(apiSourceUrl, data = postBody, headers = headers)
 
-        // 3. Headers exatos (imita o player/Web Caster – sem body!)
-        val headers = mapOf(
-            "Accept" to "application/json, text/plain, */*",
-            "X-Requested-With" to "XMLHttpRequest",
-            "Referer" to fembedUrl,  // Essencial para token válido
-            "Origin" to "https://$domain",
-            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-
-        // 4. POST VAZIO (sem data/body – gera o token fresh)
-        val postRes = app.post(apiSourceUrl, data = emptyMap(), headers = headers, timeout = 15)
-
-        if (!postRes.isSuccessful) return false
-
-        // 5. Parse JSON com data class (ou fallback Regex se parsedSafe falhar)
-        val jsonResponse = postRes.parsedSafe<FembedResponse>() ?: return false
-
-        if (!jsonResponse.success || jsonResponse.data.isEmpty()) return false
-
-        // 6. Adiciona cada qualidade encontrada (com token temporário no file)
-        jsonResponse.data.forEach { source ->
-            if (source.file.endsWith(".m3u8") && source.type == "mp4") {  // HLS streams
-                val quality = when (source.label.uppercase()) {
-                    "2160P" -> Qualities.P2160.value
-                    "1080P" -> Qualities.P1080.value
-                    "720P" -> Qualities.P720.value
-                    "480P" -> Qualities.P480.value
-                    "360P" -> Qualities.P360.value
-                    else -> extractQualityFromUrl(source.file)  // Fallback para params na URL
-                }
-
-                callback(
-                    newExtractorLink(
-                        source = name,
-                        name = "\( name (Fembed \){source.label})",
-                        url = source.file,  // .m3u8 com ?t=...&s=...&e=... (token gerado agora!)
-                        referer = fembedUrl,
-                        quality = quality,
-                        isM3u8 = true
-                    )
+            // 4. Extrair o link de streaming (.m3u8) do JSON
+            val json = postRes.text
+            
+            val m3u8Match = Regex("""\s*["']file["']\s*:\s*["'](https?://[^"']+\.m3u8[^"']*)["']""").find(json)
+            
+            val m3u8Link = m3u8Match?.groupValues?.get(1)
+            
+            if (m3u8Link != null) {
+                val quality = extractQualityFromUrl(m3u8Link)
+                
+                // CORREÇÃO: Usando o bloco initializer para definir referer, quality e isM3u8
+                callback.invoke(
+                    newExtractorLink( 
+                        name,                          // source (Argumento 1)
+                        "$name (Fembed ${quality}p)",  // name (Argumento 2)
+                        m3u8Link,                      // url (Argumento 3)
+                        null                           // type (Argumento 4 - null/opcional)
+                    ) {
+                        // Propriedades definidas no bloco de inicialização (trailing lambda)
+                        this.referer = fembedUrl
+                        this.quality = quality
+                        this.isM3u8 = true
+                    }
                 )
+                return true
             }
+
+            return false
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
         }
-
-        true
-
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
     }
-}
-
-// Data classes para parse (adicione se não tiver)
-data class FembedResponse(
-    val success: Boolean,
-    val data: List<FembedSource>
-)
-
-data class FembedSource(
-    val file: String,
-    val label: String,
-    val type: String = "mp4"
-)
     
     // --------------------------------------------------------------------------------
     // FUNÇÃO LOADLINKS FINAL E FUNCIONAL
     // --------------------------------------------------------------------------------
 
     override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
-    if (data.isBlank()) return false
-
-    val fixedDataUrl = fixUrl(data)
-
-    return try {
-        var fembedUrl: String? = null
-
-        // 1. Detecta Fembed/mirrors
-        val fembedPattern = Regex("fembed|femax|gcloud|dutafilm|embedsito")
-        if (fembedPattern in fixedDataUrl) {
-            fembedUrl = fixedDataUrl
-        } else if (fixedDataUrl.contains("/player") || fixedDataUrl.contains("?s=")) {
-            // Resolve wrapper do SuperFlix
-            fembedUrl = resolveWrapperPlayer(fixedDataUrl, mainUrl)
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        if (data.isBlank()) return false
+        
+        val fixedDataUrl = fixUrl(data)
+        
+        return try {
+            var fembedUrl: String? = null
+            
+            // 1. Identificar o Link
+            if (fixedDataUrl.contains("fembed.sx")) {
+                fembedUrl = fixedDataUrl
+            } else if (fixedDataUrl.contains("s=") && fixedDataUrl.contains("c=")) {
+                // Resolve o Player Wrapper do SuperFlix para obter a URL do Fembed
+                fembedUrl = resolveWrapperPlayer(fixedDataUrl, mainUrl)
+            }
+            
+            if (fembedUrl != null) {
+                // Tenta a extração manual (como o Web Caster)
+                val success = manualFembedExtractor(fembedUrl, callback)
+                
+                if (success) return true
+                
+                // Fallback para o extrator nativo do CloudStream
+                return loadExtractor(fembedUrl, mainUrl, subtitleCallback, callback)
+            }
+            
+            // 3. FALLBACK: Tenta extrair a URL do player da página do filme/episódio
+            val res = app.get(fixedDataUrl, referer = mainUrl, timeout = 30)
+            val doc = res.document
+            
+            val fembedUrlFromPage = findFembedUrlInPage(doc)
+            
+            if (fembedUrlFromPage != null) {
+                // Chama loadLinks recursivamente com a URL do player/fembed encontrada
+                return loadLinks(fembedUrlFromPage, isCasting, subtitleCallback, callback)
+            }
+            
+            false
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
-
-        if (fembedUrl != null) {
-            // Extrai com o método atualizado (gera token dinâmico)
-            val success = manualFembedExtractor(fembedUrl, callback)
-            if (success) return true
-
-            // Fallback: extrator nativo CloudStream
-            return loadExtractor(fembedUrl, mainUrl, subtitleCallback, callback)
-        }
-
-        // Fallback página (se data for URL da página)
-        val res = app.get(fixedDataUrl, referer = mainUrl, timeout = 30)
-        val doc = res.document
-        val fembedFromPage = findFembedUrlInPage(doc)
-        if (fembedFromPage != null) {
-            return loadLinks(fembedFromPage, isCasting, subtitleCallback, callback)
-        }
-
-        false
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
     }
-} --------------------------------------------------------------------------------
+    
+    // --------------------------------------------------------------------------------
     // FUNÇÃO AUXILIAR JSON-LD
     // --------------------------------------------------------------------------------
 
