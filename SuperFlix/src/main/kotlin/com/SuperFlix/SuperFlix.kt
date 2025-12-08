@@ -5,10 +5,6 @@ import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import org.jsoup.nodes.Element
 import java.net.URLEncoder
-import com.lagradost.cloudstream3.utils.ExtractorApi
-import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.Qualities
-import com.lagradost.cloudstream3.utils.loadExtractor
 
 class SuperFlix : MainAPI() {
     override var mainUrl = "https://superflix21.lol"
@@ -285,86 +281,55 @@ class SuperFlix : MainAPI() {
         return JsonLdInfo()
     }
 
-    // 🔥🔥🔥 FUNÇÃO LOADLINKS CORRIGIDA 🔥🔥🔥
-  
-    
+    // 🔥🔥🔥 FUNÇÃO loadLinks SIMPLIFICADA E SEM ERROS 🔥🔥🔥
     override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
-    if (data.isBlank()) return false
-    
-    return try {
-        // 🔥 SE JÁ FOR LINK .m3u8 DIRETO
-        if (data.contains(".m3u8") && data.contains("rcr22")) {
-            val quality = extractQualityFromUrl(data)
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        if (data.isBlank()) return false
+        
+        return try {
+            // 🔥🔥🔥 100% DOS CASOS: DELEGA PARA O EXTRACTOR DO FEMBED 🔥🔥🔥
+            // Se já for URL do Fembed
+            if (data.contains("fembed.sx")) {
+                return loadExtractor(data, mainUrl, subtitleCallback, callback)
+            }
             
-            // ✅ SOLUÇÃO SEM DEPRECATION WARNING
-            val link = object : ExtractorLink(
-                source = name,
-                name = "$name (${quality}p)",
-                url = data,
-                referer = mainUrl,
-                quality = quality,
-                isM3u8 = true
-            ) {}
+            // Se for URL do SuperFlix, procurar Fembed
+            val finalUrl = if (data.startsWith("http")) data else fixUrl(data)
+            val res = app.get(finalUrl, referer = mainUrl, timeout = 30)
+            val html = res.text
             
-            callback.invoke(link)
-            return true
-        }
-        
-        // 🔥🔥🔥 SOLUÇÃO PRINCIPAL: URL DO FEMBED
-        if (data.contains("fembed.sx")) {
-            return loadExtractor(data, mainUrl, subtitleCallback, callback)
-        }
-        
-        // 🔥 SE FOR URL DO SUPERFLIX
-        val finalUrl = if (data.startsWith("http")) data else fixUrl(data)
-        val res = app.get(finalUrl, referer = mainUrl, timeout = 30)
-        val html = res.text
-        
-        // Buscar URL do Fembed
-        val fembedUrl = findFembedUrlInHtml(html)
-        
-        if (fembedUrl != null) {
-            return loadExtractor(fembedUrl, finalUrl, subtitleCallback, callback)
-        }
-        
-        false
-        
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
-    }
-}
-
-private fun findFembedUrlInHtml(html: String): String? {
-    val patterns = listOf(
-        Regex("""https?://fembed\.sx/e/\d+[^"'\s]*"""),
-        Regex("""data-url=["'](https?://[^"']+fembed[^"']+)["']"""),
-        Regex("""<iframe[^>]+src=["'](https?://[^"']+fembed[^"']+)["']""")
-    )
-    
-    patterns.forEach { pattern ->
-        pattern.find(html)?.let { match ->
-            val url = if (match.groupValues.size > 1) match.groupValues[1] else match.value
-            if (url.isNotBlank()) return url
+            val fembedUrl = findFembedUrlInHtml(html)
+            
+            if (fembedUrl != null) {
+                return loadExtractor(fembedUrl, finalUrl, subtitleCallback, callback)
+            }
+            
+            false
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
     
-    return null
-}
-    
-    private fun extractQualityFromUrl(url: String): Int {
-        return when {
-            url.contains("/2160/") || url.contains("2160p") -> 2160
-            url.contains("/1080/") || url.contains("1080p") -> 1080
-            url.contains("/720/") || url.contains("720p") -> 720
-            url.contains("/480/") || url.contains("480p") -> 480
-            url.contains("/360/") || url.contains("360p") -> 360
-            else -> Qualities.Unknown.value
+    private fun findFembedUrlInHtml(html: String): String? {
+        val patterns = listOf(
+            Regex("""https?://fembed\.sx/e/\d+[^"'\s]*"""),
+            Regex("""data-url=["'](https?://[^"']+fembed[^"']+)["']"""),
+            Regex("""<iframe[^>]+src=["'](https?://[^"']+fembed[^"']+)["']""")
+        )
+        
+        patterns.forEach { pattern ->
+            pattern.find(html)?.let { match ->
+                val url = if (match.groupValues.size > 1) match.groupValues[1] else match.value
+                if (url.isNotBlank()) return url
+            }
         }
+        
+        return null
     }
 }
