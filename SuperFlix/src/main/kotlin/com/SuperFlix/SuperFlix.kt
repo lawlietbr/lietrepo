@@ -4,8 +4,6 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
-import com.lagradost.cloudstream3.network.WebViewResolver
 import org.jsoup.nodes.Element
 import java.net.URLEncoder
 import kotlinx.coroutines.delay
@@ -21,7 +19,6 @@ class SuperFlix : MainAPI() {
     // Configurações do sniffer
     private val sniffingEnabled = true
     private val debugNetwork = true
-    private val maxSniffingTime = 15000L // 15 segundos máximo
 
     // Padrões para detectar URLs de vídeo
     private val videoPatterns = listOf(
@@ -218,14 +215,15 @@ class SuperFlix : MainAPI() {
                     val quality = detectQualityFromUrl(videoUrl)
                     val source = detectSourceFromUrl(videoUrl)
                     
-                    val extractorLink = ExtractorLink(
-                        name,
-                        source,
-                        videoUrl,
+                    // CORREÇÃO AQUI: Usando newExtractorLink corretamente
+                    val extractorLink = newExtractorLink(
+                        source = this.name,
+                        name = source,
+                        url = videoUrl,
                         referer = data,
                         quality = quality,
                         isM3u8 = videoUrl.contains(".m3u8")
-                    )
+                    ) {}
                     
                     callback(extractorLink)
                     println("SuperFlix: loadLinks - Link adicionado: $source - Qualidade: $quality")
@@ -241,7 +239,7 @@ class SuperFlix : MainAPI() {
     // ========== MÉTODOS DE NETWORK SNIFFING ==========
     
     private suspend fun sniffVideoUrls(pageUrl: String): List<String> {
-        val videoUrls = mutableSetOf<String>()
+        val videoUrls = mutableSet<String>()
         
         try {
             println("SuperFlix: sniffVideoUrls - Iniciando sniffing em: $pageUrl")
@@ -250,17 +248,13 @@ class SuperFlix : MainAPI() {
             val document = app.get(pageUrl, headers = getDefaultHeaders()).document
             extractVideoUrlsFromHtml(document, videoUrls)
             
-            // Método 2: Analisar requisições de rede via WebView (simulado)
-            val networkRequests = simulateNetworkSniffing(pageUrl)
-            extractVideoUrlsFromNetwork(networkRequests, videoUrls)
-            
-            // Método 3: Analisar scripts JavaScript
+            // Método 2: Analisar scripts JavaScript
             extractVideoUrlsFromScripts(document, videoUrls)
             
-            // Método 4: Analisar iframes
+            // Método 3: Analisar iframes
             extractVideoUrlsFromIframes(document, videoUrls)
             
-            // Método 5: Analisar dados JSON
+            // Método 4: Analisar dados JSON
             extractVideoUrlsFromJsonData(document, videoUrls)
             
         } catch (e: Exception) {
@@ -307,81 +301,6 @@ class SuperFlix : MainAPI() {
         }
     }
     
-    private suspend fun simulateNetworkSniffing(url: String): List<NetworkRequest> {
-        val networkRequests = mutableListOf<NetworkRequest>()
-        
-        try {
-            // Simular carregamento da página e extrair URLs
-            val response = app.get(url, headers = getDefaultHeaders())
-            val html = response.text
-            
-            // Extrair URLs do conteúdo
-            extractUrlsFromText(html, networkRequests)
-            
-            // Extrair de scripts inline
-            val scriptPattern = Regex("""<script[^>]*>(.*?)</script>""", RegexOption.DOT_MATCHES_ALL)
-            val scripts = scriptPattern.findAll(html)
-            
-            scripts.forEach { scriptMatch ->
-                val scriptContent = scriptMatch.groupValues[1]
-                extractUrlsFromText(scriptContent, networkRequests)
-            }
-            
-        } catch (e: Exception) {
-            println("SuperFlix: simulateNetworkSniffing - Erro: ${e.message}")
-        }
-        
-        return networkRequests
-    }
-    
-    private fun extractUrlsFromText(text: String, requests: MutableList<NetworkRequest>) {
-        // Padrão para encontrar URLs
-        val urlPattern = Regex("""https?://[^\s"'<>{}()]+""")
-        
-        urlPattern.findAll(text).forEach { match ->
-            val url = match.value
-            if (isVideoUrl(url)) {
-                requests.add(NetworkRequest(url, emptyMap()))
-            }
-        }
-        
-        // Padrões específicos para streaming
-        val streamingPatterns = listOf(
-            Regex("""["'](https?://[^"']+\.m3u8[^"']*)["']"""),
-            Regex("""["'](https?://[^"']+\.mpd[^"']*)["']"""),
-            Regex("""file\s*:\s*["']([^"']+)["']"""),
-            Regex("""src\s*:\s*["']([^"']+)["']"""),
-            Regex("""url\s*:\s*["']([^"']+)["']"""),
-            Regex("""hls\s*:\s*["']([^"']+)["']"""),
-            Regex("""dash\s*:\s*["']([^"']+)["']"""),
-            Regex("""manifest\s*:\s*["']([^"']+)["']"""),
-            Regex("""source\s*:\s*["']([^"']+)["']"""),
-            Regex("""videoUrl\s*:\s*["']([^"']+)["']"""),
-            Regex("""streamUrl\s*:\s*["']([^"']+)["']""")
-        )
-        
-        streamingPatterns.forEach { pattern ->
-            pattern.findAll(text).forEach { match ->
-                val url = match.groupValues.getOrNull(1) ?: return@forEach
-                if (isVideoUrl(url)) {
-                    requests.add(NetworkRequest(fixUrl(url), emptyMap()))
-                }
-            }
-        }
-    }
-    
-    private fun extractVideoUrlsFromNetwork(requests: List<NetworkRequest>, urlSet: MutableSet<String>) {
-        requests.forEach { request ->
-            val url = request.url
-            if (isVideoUrl(url) && !shouldFilterUrl(url)) {
-                urlSet.add(url)
-                if (debugNetwork) {
-                    println("SuperFlix: Network Sniff - URL encontrada: $url")
-                }
-            }
-        }
-    }
-    
     private fun extractVideoUrlsFromScripts(document: Element, urlSet: MutableSet<String>) {
         document.select("script").forEach { script ->
             val scriptContent = script.html()
@@ -390,7 +309,7 @@ class SuperFlix : MainAPI() {
             val jsPatterns = listOf(
                 Regex("""var\s+\w+\s*=\s*["']([^"']+\.(?:mp4|m3u8|mpd)[^"']*)["']"""),
                 Regex("""let\s+\w+\s*=\s*["']([^"']+\.(?:mp4|m3u8|mpd)[^"']*)["']"""),
-                Regex("""const\s+\w+\s*=\s*["']([^"']+\.(?:mp4|m3u8|mpd)[^"']*)["']"""),
+                Regex("""const\s+\w+\s*=\s*["']([^"']+\.(mp4|m3u8|mpd)[^"']*)["']"""),
                 Regex("""\.setup\s*\({[^}]*["']file["']\s*:\s*["']([^"']+)["']"""),
                 Regex("""player\.load\(["']([^"']+)["']\)"""),
                 Regex("""hls\.loadSource\(["']([^"']+)["']\)"""),
@@ -470,13 +389,14 @@ class SuperFlix : MainAPI() {
     }
     
     private fun detectQualityFromUrl(url: String): Int {
+        // CORREÇÃO AQUI: Usando valores numéricos diretamente
         return when {
-            url.contains("1080") || url.contains("fullhd", ignoreCase = true) -> Qualities.FullHd.value
-            url.contains("720") || url.contains("hd", ignoreCase = true) -> Qualities.HD.value
-            url.contains("480") || url.contains("sd", ignoreCase = true) -> Qualities.SD.value
-            url.contains("360") -> Qualities.P360.value
-            url.contains("240") -> Qualities.P240.value
-            else -> Qualities.Unknown.value
+            url.contains("1080") || url.contains("fullhd", ignoreCase = true) -> 1080
+            url.contains("720") || url.contains("hd", ignoreCase = true) -> 720
+            url.contains("480") || url.contains("sd", ignoreCase = true) -> 480
+            url.contains("360") -> 360
+            url.contains("240") -> 240
+            else -> 0  // Qualidade desconhecida
         }
     }
     
@@ -677,11 +597,6 @@ class SuperFlix : MainAPI() {
         
         return JsonLdInfo()
     }
-    
-    data class NetworkRequest(
-        val url: String,
-        val headers: Map<String, String>
-    )
     
     data class JsonLdInfo(
         val title: String? = null,
