@@ -1,4 +1,4 @@
-Package com.SuperFlix
+package com.SuperFlix
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -195,16 +195,16 @@ class SuperFlix : MainAPI() {
             println("SuperFlix: loadLinks - ERRO: URL vazia")
             return false
         }
-        
+
         // Chamada direta ao Extractor Padrão.
-        // O `loadExtractor` tentará os extractors HTTP. Se falhar, o `usesWebView = true`
-        // da classe forçará o sistema a tentar o WebView para carregar o link.
         return loadExtractor(data, subtitleCallback, callback)
     }
 
     // =========================================================================
     // FUNÇÕES DE RASPAGEM MANUAL REMOVIDAS (para forçar o uso de Extractor Padrão/WebView)
     // =========================================================================
+    // O código abaixo foi removido para evitar a lógica de raspagem HTTP pura que estava falhando.
+
     // private suspend fun extractFilemoon(filemoonUrl: String): List<String> { ... }
     // private suspend fun tryDirectFembedApi(url: String): List<String> { ... }
 
@@ -271,7 +271,7 @@ class SuperFlix : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // Implementação mock (deve ser o ExtractorApi.extract real)
+        // Implementação mock (esta função deve ser substituída pela chamada real do ExtractorApi.extract)
         return false 
     }
 
@@ -334,7 +334,7 @@ class SuperFlix : MainAPI() {
 
                     return JsonLdInfo(title = title, year = year, posterUrl = image, description = description, genres = genres, director = director, actors = actors, type = type)
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) { /* Ignorar JSON-LD malformado */ }
         }
         return JsonLdInfo()
     }
