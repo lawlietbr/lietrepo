@@ -1,9 +1,13 @@
 package com.SuperFlix
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.sync
+import com.lagradost.cloudstream3.debug
+import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import org.jsoup.nodes.Element
 import java.net.URLEncoder
 
@@ -193,8 +197,8 @@ class SuperFlix : MainAPI() {
             return false
         }
 
-        // USAR WEBVIEW PARA CAPTURAR REQUISIÇÕES DE REDE
-        println("SuperFlix: loadLinks - Usando WebView para capturar requisições de rede...")
+        // USAR SNIFFER PARA CAPTURAR REQUISIÇÕES DE REDE
+        println("SuperFlix: loadLinks - Usando Sniffer para capturar requisições de rede...")
         
         val m3u8Urls = captureNetworkRequests(data)
         println("SuperFlix: loadLinks - URLs .m3u8 capturadas nas requisições: ${m3u8Urls.size}")
@@ -232,9 +236,8 @@ class SuperFlix : MainAPI() {
         try {
             println("SuperFlix: captureNetworkRequests - Iniciando captura para: $url")
             
-            // Usar WebViewResolver para capturar requisições de rede
-            // Este método carrega a página em um WebView e captura todas as requisições
-            val networkRequests = WebViewResolver().resolve(url) { request ->
+            // Usar a API de sniffing do Cloudstream para capturar requisições
+            val sniffedUrls = app.sniff(url) { request ->
                 // Filtrar apenas requisições de mídia HLS
                 val requestUrl = request.url
                 val isM3u8Request = requestUrl.contains(".m3u8") || 
@@ -244,67 +247,27 @@ class SuperFlix : MainAPI() {
                 
                 if (isM3u8Request) {
                     println("SuperFlix: captureNetworkRequests - Requisição de mídia detectada: $requestUrl")
-                    println("  Method: ${request.method}")
-                    println("  Headers: ${request.headers}")
                 }
                 
                 isM3u8Request
             }
             
-            println("SuperFlix: captureNetworkRequests - Total de requisições capturadas: ${networkRequests.size}")
+            println("SuperFlix: captureNetworkRequests - Total de requisições capturadas: ${sniffedUrls.size}")
             
             // Processar as URLs capturadas
-            for (request in networkRequests) {
-                val requestUrl = request.url
-                if (isValidM3u8Url(requestUrl)) {
-                    println("SuperFlix: captureNetworkRequests - URL válida: $requestUrl")
-                    m3u8Urls.add(requestUrl)
-                }
-            }
-            
-        } catch (e: Exception) {
-            println("SuperFlix: captureNetworkRequests - Erro no WebView: ${e.message}")
-            
-            // Fallback: tentar usar método de sniffing se WebView falhar
-            m3u8Urls.addAll(trySniffNetworkRequests(url))
-        }
-        
-        return m3u8Urls.distinct().filter { isValidM3u8Url(it) }
-    }
-
-    private suspend fun trySniffNetworkRequests(url: String): List<String> {
-        val m3u8Urls = mutableListOf<String>()
-        
-        try {
-            println("SuperFlix: trySniffNetworkRequests - Tentando sniffing alternativo...")
-            
-            // Tentar usar a API de sniffing do Cloudstream
-            val sniffed = app.sniff(url) { request ->
-                val requestUrl = request.url
-                val isM3u8 = requestUrl.contains(".m3u8") || 
-                            requestUrl.contains("/hls2/") ||
-                            (requestUrl.contains("be") && requestUrl.contains("rcr72") && requestUrl.contains("waw04"))
-                
-                if (isM3u8) {
-                    println("SuperFlix: trySniffNetworkRequests - Sniffed: $requestUrl")
-                }
-                
-                isM3u8
-            }
-            
-            println("SuperFlix: trySniffNetworkRequests - Sniffed ${sniffed.size} URLs")
-            
-            for (sniffedUrl in sniffed) {
+            for (sniffedUrl in sniffedUrls) {
                 if (isValidM3u8Url(sniffedUrl)) {
+                    println("SuperFlix: captureNetworkRequests - URL válida: $sniffedUrl")
                     m3u8Urls.add(sniffedUrl)
                 }
             }
             
         } catch (e: Exception) {
-            println("SuperFlix: trySniffNetworkRequests - Erro no sniffing: ${e.message}")
+            println("SuperFlix: captureNetworkRequests - Erro no sniffing: ${e.message}")
+            e.printStackTrace()
         }
         
-        return m3u8Urls
+        return m3u8Urls.distinct().filter { isValidM3u8Url(it) }
     }
 
     private fun isValidM3u8Url(url: String): Boolean {
@@ -369,7 +332,7 @@ class SuperFlix : MainAPI() {
             "cache-control" to "no-cache",
             "dnt" to "1",
             "origin" to mainUrl,
-            "pragma" to "no-casse,
+            "pragma" to "no-cache",
             "referer" to mainUrl,
             "sec-ch-ua" to "\"Google Chrome\";v=\"137\", \"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"",
             "sec-ch-ua-mobile" to "?0",
