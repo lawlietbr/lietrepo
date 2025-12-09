@@ -84,7 +84,7 @@ class SuperFlix : MainAPI() {
         val imgElement = selectFirst("img")
         val posterSrc = imgElement?.attr("src")
         val posterDataSrc = imgElement?.attr("data-src")
-        val poster = if (posterSrc.isNullOrblank()) {
+        val poster = if (posterSrc.isNullOrBlank()) {
             posterDataSrc?.let { fixUrl(it) }
         } else {
             fixUrl(posterSrc)
@@ -193,14 +193,14 @@ class SuperFlix : MainAPI() {
             return false
         }
 
-        // USAR SNIFFER PARA CAPTURAR REQUISIÇÕES DE REDE
-        println("SuperFlix: loadLinks - Usando Sniffer para capturar requisições de rede...")
+        // Método principal: Analisar a página para encontrar URLs .m3u8
+        println("SuperFlix: loadLinks - Analisando página para URLs .m3u8...")
         
-        val m3u8Urls = captureNetworkRequests(data)
-        println("SuperFlix: loadLinks - URLs .m3u8 capturadas nas requisições: ${m3u8Urls.size}")
+        val m3u8Urls = findM3u8Urls(data)
+        println("SuperFlix: loadLinks - URLs .m3u8 encontradas: ${m3u8Urls.size}")
         
         for (m3u8Url in m3u8Urls) {
-            println("SuperFlix: loadLinks - URL capturada: $m3u8Url")
+            println("SuperFlix: loadLinks - URL encontrada: $m3u8Url")
             
             val quality = extractQualityFromM3u8Url(m3u8Url)
             println("SuperFlix: loadLinks - Qualidade detectada: $quality")
@@ -219,171 +219,144 @@ class SuperFlix : MainAPI() {
             )
         }
         
+        // Se não encontrou URLs .m3u8, tentar usar extractor padrão
+        if (m3u8Urls.isEmpty()) {
+            println("SuperFlix: loadLinks - Nenhuma URL .m3u8 encontrada, tentando extractor padrão...")
+            return loadExtractor(data, subtitleCallback, callback)
+        }
+        
         val success = m3u8Urls.isNotEmpty()
         println("SuperFlix: loadLinks - FIM: ${if (success) "SUCESSO" else "FALHA"} (${m3u8Urls.size} links)")
         return success
     }
 
-    // ========== MÉTODO PRINCIPAL: CAPTURAR REQUISIÇÕES DE REDE ==========
+    // ========== MÉTODO PARA ENCONTRAR URLs .m3u8 ==========
 
-    private suspend fun captureNetworkRequests(url: String): List<String> {
+    private suspend fun findM3u8Urls(url: String): List<String> {
         val m3u8Urls = mutableListOf<String>()
         
         try {
-            println("SuperFlix: captureNetworkRequests - Iniciando captura para: $url")
+            println("SuperFlix: findM3u8Urls - Analisando: $url")
             
-            // Método 1: Tentar usar extractor de Fembed primeiro (se for URL do Fembed)
-            if (url.contains("fembed") || url.contains("filemoon")) {
-                println("SuperFlix: captureNetworkRequests - Tentando extractor para Fembed...")
-                try {
-                    val extractorLinks = loadExtractor(url)
-                    if (extractorLinks.isNotEmpty()) {
-                        println("SuperFlix: captureNetworkRequests - Extractor encontrou ${extractorLinks.size} links")
-                        // Converter ExtractorLinks para URLs
-                        extractorLinks.forEach { link ->
-                            if (isValidM3u8Url(link.url)) {
-                                m3u8Urls.add(link.url)
-                            }
-                        }
+            // Obter HTML da página
+            val document = app.get(url).document
+            val html = document.html()
+            
+            // Padrões para URLs .m3u8 (especialmente do tipo hls2)
+            val patterns = listOf(
+                // Padrão exato: https://be6721.rcr72.waw04.../hls2/.../master.m3u8
+                Regex("""https?://[^\s"']*?/hls2/[^\s"']*?/master\.m3u8[^\s"']*""", RegexOption.IGNORE_CASE),
+                
+                // Qualquer URL .m3u8 com parâmetros
+                Regex("""https?://[^\s"']*?\.m3u8\?[^\s"']*""", RegexOption.IGNORE_CASE),
+                
+                // URLs .m3u8 simples
+                Regex("""https?://[^\s"']*?\.m3u8[^\s"']*""", RegexOption.IGNORE_CASE),
+                
+                // URLs em atributos src, data-src, etc.
+                Regex("""(?:src|data-src|data-url|data-file)\s*=\s*["'](https?://[^"']*?\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE),
+                
+                // URLs em configurações de player JavaScript
+                Regex("""["'](?:file|url|source)["']\s*:\s*["'](https?://[^"']*?\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE),
+                
+                // Padrão específico para hls.js
+                Regex("""\.loadSource\s*\(\s*["'](https?://[^"']*?\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
+            )
+            
+            // Procurar usando todos os padrões
+            for (pattern in patterns) {
+                val matches = pattern.findAll(html)
+                for (match in matches) {
+                    var foundUrl = match.value
+                    
+                    // Se o padrão tem grupos de captura, pegar o primeiro grupo
+                    if (match.groupValues.size > 1 && match.groupValues[1].startsWith("http")) {
+                        foundUrl = match.groupValues[1]
                     }
-                } catch (e: Exception) {
-                    println("SuperFlix: captureNetworkRequests - Extractor falhou: ${e.message}")
+                    
+                    if (isValidM3u8Url(foundUrl)) {
+                        println("SuperFlix: findM3u8Urls - URL encontrada via regex: $foundUrl")
+                        m3u8Urls.add(foundUrl)
+                    }
                 }
             }
             
-            // Método 2: Analisar HTML da página para encontrar URLs .m3u8
-            if (m3u8Urls.isEmpty()) {
-                println("SuperFlix: captureNetworkRequests - Analisando HTML da página...")
-                try {
-                    val document = app.get(url).document
-                    val html = document.html()
+            // Procurar em scripts JavaScript
+            document.select("script").forEach { script ->
+                val scriptContent = script.html()
+                if (scriptContent.contains("m3u8") || scriptContent.contains("hls") || scriptContent.contains("master.m3u8")) {
+                    // Padrão específico para URLs hls2
+                    val hls2Pattern = Regex("""https?://[^"'\s;]+/hls2/[^"'\s;]+/master\.m3u8[^"'\s;]*""")
+                    val matches = hls2Pattern.findAll(scriptContent)
                     
-                    // Procurar por URLs .m3u8 no HTML
-                    val patterns = listOf(
-                        Regex("""https?://[^\s"']*?/hls2/[^\s"']*?/master\.m3u8[^\s"']*""", RegexOption.IGNORE_CASE),
-                        Regex("""https?://[^\s"']*?\.m3u8[^\s"']*""", RegexOption.IGNORE_CASE),
-                        Regex("""["'](https?://[^"']*?/hls2/[^"']*?\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE),
-                        Regex("""data-(?:src|url|file)\s*=\s*["'](https?://[^"']*?\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
-                    )
-                    
-                    for (pattern in patterns) {
-                        val matches = pattern.findAll(html)
+                    for (match in matches) {
+                        val foundUrl = match.value
+                        if (isValidM3u8Url(foundUrl)) {
+                            println("SuperFlix: findM3u8Urls - URL encontrada em script: $foundUrl")
+                            m3u8Urls.add(foundUrl)
+                        }
+                    }
+                }
+            }
+            
+            // Procurar em iframes (players embutidos)
+            val iframes = document.select("iframe[src]")
+            println("SuperFlix: findM3u8Urls - Iframes encontrados: ${iframes.size}")
+            
+            for (iframe in iframes) {
+                val iframeSrc = iframe.attr("src")
+                if (iframeSrc.isNotBlank()) {
+                    println("SuperFlix: findM3u8Urls - Analisando iframe: $iframeSrc")
+                    try {
+                        // Analisar o iframe
+                        val iframeDoc = app.get(fixUrl(iframeSrc)).document
+                        val iframeHtml = iframeDoc.html()
+                        
+                        // Procurar .m3u8 no iframe
+                        val iframePattern = Regex("""https?://[^\s"']*?\.m3u8[^\s"']*""")
+                        val matches = iframePattern.findAll(iframeHtml)
+                        
                         for (match in matches) {
-                            var foundUrl = match.value
-                            if (match.groupValues.size > 1 && match.groupValues[1].startsWith("http")) {
-                                foundUrl = match.groupValues[1]
-                            }
-                            
+                            val foundUrl = match.value
                             if (isValidM3u8Url(foundUrl)) {
-                                println("SuperFlix: captureNetworkRequests - URL encontrada no HTML: $foundUrl")
+                                println("SuperFlix: findM3u8Urls - URL encontrada no iframe: $foundUrl")
                                 m3u8Urls.add(foundUrl)
                             }
                         }
+                    } catch (e: Exception) {
+                        println("SuperFlix: findM3u8Urls - Erro ao analisar iframe: ${e.message}")
                     }
-                    
-                    // Procurar em scripts
-                    document.select("script").forEach { script ->
-                        val scriptContent = script.html()
-                        if (scriptContent.contains("hls") || scriptContent.contains("m3u8")) {
-                            val m3u8Pattern = Regex("""https?://[^"'\s;]+/hls2/[^"'\s;]+/master\.m3u8[^"'\s;]*""")
-                            val matches = m3u8Pattern.findAll(scriptContent)
-                            
-                            for (match in matches) {
-                                val foundUrl = match.value
-                                if (isValidM3u8Url(foundUrl)) {
-                                    println("SuperFlix: captureNetworkRequests - URL encontrada em script: $foundUrl")
-                                    m3u8Urls.add(foundUrl)
-                                }
-                            }
-                        }
-                    }
-                    
-                } catch (e: Exception) {
-                    println("SuperFlix: captureNetworkRequests - Erro ao analisar HTML: ${e.message}")
-                }
-            }
-            
-            // Método 3: Se ainda não encontrou, tentar métodos alternativos
-            if (m3u8Urls.isEmpty()) {
-                println("SuperFlix: captureNetworkRequests - Tentando métodos alternativos...")
-                
-                // Tentar encontrar iframes e analisá-los
-                try {
-                    val document = app.get(url).document
-                    val iframes = document.select("iframe[src]")
-                    
-                    for (iframe in iframes) {
-                        val iframeSrc = iframe.attr("src")
-                        if (iframeSrc.isNotBlank()) {
-                            println("SuperFlix: captureNetworkRequests - Analisando iframe: $iframeSrc")
-                            try {
-                                val iframeDoc = app.get(fixUrl(iframeSrc)).document
-                                val iframeHtml = iframeDoc.html()
-                                
-                                val m3u8Pattern = Regex("""https?://[^\s"']*?\.m3u8[^\s"']*""")
-                                val matches = m3u8Pattern.findAll(iframeHtml)
-                                
-                                for (match in matches) {
-                                    val foundUrl = match.value
-                                    if (isValidM3u8Url(foundUrl)) {
-                                        println("SuperFlix: captureNetworkRequests - URL encontrada no iframe: $foundUrl")
-                                        m3u8Urls.add(foundUrl)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                println("SuperFlix: captureNetworkRequests - Erro ao analisar iframe: ${e.message}")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    println("SuperFlix: captureNetworkRequests - Erro nos métodos alternativos: ${e.message}")
                 }
             }
             
         } catch (e: Exception) {
-            println("SuperFlix: captureNetworkRequests - Erro geral: ${e.message}")
-            e.printStackTrace()
+            println("SuperFlix: findM3u8Urls - Erro: ${e.message}")
         }
         
-        println("SuperFlix: captureNetworkRequests - Total de URLs encontradas: ${m3u8Urls.size}")
         return m3u8Urls.distinct().filter { isValidM3u8Url(it) }
-    }
-
-    // Método auxiliar para usar loadExtractor
-    private suspend fun loadExtractor(url: String): List<ExtractorLink> {
-        val links = mutableListOf<ExtractorLink>()
-        
-        // Esta é uma implementação simplificada - na prática você precisaria
-        // implementar a lógica real de extração ou usar a API do Cloudstream
-        
-        // Por enquanto, retorna lista vazia
-        return links
     }
 
     private fun isValidM3u8Url(url: String): Boolean {
         if (url.isBlank() || !url.startsWith("http")) return false
         
-        // URLs que definitivamente NÃO são .m3u8 de vídeo
+        // URLs para ignorar (análise, anúncios, etc.)
         val ignorePatterns = listOf(
             "google-analytics", "doubleclick", "facebook", "twitter",
             "instagram", "analytics", "tracking", "pixel", "beacon",
             "ads", "adserver", "banner", "sponsor", "gstatic",
-            "googlesyndication", "googletagmanager"
+            "googlesyndication", "googletagmanager", "youtube.com",
+            "vimeo.com", "facebook.com/tr", "facebook.com/events"
         )
         
         if (ignorePatterns.any { url.contains(it, ignoreCase = true) }) {
             return false
         }
         
-        // Deve conter .m3u8 OU ter padrão hls2/.../master.m3u8
-        val isHls2Pattern = url.contains("/hls2/") && (url.contains(".m3u8") || url.contains("master.m3u8"))
-        val isM3u8Pattern = url.contains(".m3u8")
-        
-        return isHls2Pattern || isM3u8Pattern
+        // Deve conter .m3u8
+        return url.contains(".m3u8")
     }
 
     private fun extractQualityFromM3u8Url(url: String): Int {
-        // Padrões de qualidade
         val qualityPatterns = mapOf(
             Regex("""/360p?/|/360/|360p?\.m3u8""") to 360,
             Regex("""/480p?/|/480/|480p?\.m3u8""") to 480,
@@ -398,7 +371,7 @@ class SuperFlix : MainAPI() {
             }
         }
         
-        // Se não encontrar, verificar pelo nome do arquivo no padrão hls2
+        // Tentar detectar qualidade pelo padrão hls2
         if (url.contains("/hls2/")) {
             try {
                 val pathSegments = url.split("/")
