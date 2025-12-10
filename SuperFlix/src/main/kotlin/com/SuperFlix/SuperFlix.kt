@@ -318,15 +318,10 @@ class SuperFlix : MainAPI() {
 
                 tmdbInfo.actors?.let { addActors(it) }
                 
-                // Corrigido: addTrailer agora é chamado corretamente
+                // CORREÇÃO: Adiciona trailer corretamente para CloudStream 3
                 tmdbInfo.youtubeTrailer?.let { trailerKey ->
-                    addTrailer(
-                        Trailer(
-                            name = "Trailer",
-                            url = "https://www.youtube.com/watch?v=$trailerKey",
-                            embed = trailerKey
-                        )
-                    )
+                    val trailerUrl = "https://www.youtube.com/watch?v=$trailerKey"
+                    addTrailer(trailerUrl)
                 }
 
                 this.recommendations = tmdbInfo.recommendations?.map { rec ->
@@ -362,15 +357,10 @@ class SuperFlix : MainAPI() {
 
                 tmdbInfo.actors?.let { addActors(it) }
                 
-                // Corrigido: addTrailer para filmes
+                // CORREÇÃO: Adiciona trailer corretamente para CloudStream 3
                 tmdbInfo.youtubeTrailer?.let { trailerKey ->
-                    addTrailer(
-                        Trailer(
-                            name = "Trailer",
-                            url = "https://www.youtube.com/watch?v=$trailerKey",
-                            embed = trailerKey
-                        )
-                    )
+                    val trailerUrl = "https://www.youtube.com/watch?v=$trailerKey"
+                    addTrailer(trailerUrl)
                 }
 
                 this.recommendations = tmdbInfo.recommendations?.map { rec ->
@@ -415,20 +405,39 @@ class SuperFlix : MainAPI() {
                 // Tenta obter informações do TMDB para este episódio
                 val tmdbEpisode = tmdbEpisodes?.find { it.episode_number == episodeNumber }
                 
-                episodes.add(
-                    newEpisode(dataUrl) {
-                        this.name = tmdbEpisode?.name ?: "Episódio $episodeNumber"
-                        this.season = button.attr("data-season").toIntOrNull() ?: 1
-                        this.episode = button.attr("data-ep").toIntOrNull() ?: episodeNumber
-                        this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" }
-                        this.plot = tmdbEpisode?.overview
-                        
-                        // Para animes, adiciona duração se disponível
-                        if (isAnime) {
-                            this.duration = tmdbEpisode?.runtime ?: 24 // Padrão 24 minutos para animes
+                // Cria o episódio com todas as informações disponíveis
+                val episode = newEpisode(fixUrl(dataUrl)) {
+                    this.name = tmdbEpisode?.name ?: "Episódio $episodeNumber"
+                    this.season = button.attr("data-season").toIntOrNull() ?: 1
+                    this.episode = button.attr("data-ep").toIntOrNull() ?: episodeNumber
+                    
+                    // Adiciona thumbnail do episódio
+                    this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" }
+                    
+                    // Adiciona sinopse do episódio (description no CloudStream)
+                    this.description = tmdbEpisode?.overview
+                    
+                    // Adiciona data de lançamento se disponível
+                    tmdbEpisode?.air_date?.let { airDate ->
+                        // Converte para timestamp se possível
+                        try {
+                            val dateFormatter = java.text.SimpleDateFormat("yyyy-MM-dd")
+                            val date = dateFormatter.parse(airDate)
+                            this.date = date.time
+                        } catch (e: Exception) {
+                            // Se não conseguir converter, usa como string
+                            this.description = (this.description ?: "") + "\n\nLançado em: $airDate"
                         }
                     }
-                )
+                    
+                    // Adiciona duração para animes
+                    if (isAnime) {
+                        val duration = tmdbEpisode?.runtime ?: 24 // Padrão 24 minutos para animes
+                        this.description = (this.description ?: "") + "\n\nDuração: ${duration}min"
+                    }
+                }
+                
+                episodes.add(episode)
             }
         } else {
             // Fallback: procura por lista de episódios em divs
@@ -442,18 +451,33 @@ class SuperFlix : MainAPI() {
                 
                 val tmdbEpisode = tmdbEpisodes?.find { it.episode_number == epNumber }
                 
-                episodes.add(
-                    newEpisode(dataUrl) {
-                        this.name = tmdbEpisode?.name ?: 
-                                   episodeItem.selectFirst(".ep-title, .title")?.text()?.trim() ?: 
-                                   "Episódio $epNumber"
-                        this.season = 1
-                        this.episode = epNumber
-                        this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" } ?:
-                                       episodeItem.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
-                        this.plot = tmdbEpisode?.overview
+                val episode = newEpisode(fixUrl(dataUrl)) {
+                    this.name = tmdbEpisode?.name ?: 
+                               episodeItem.selectFirst(".ep-title, .title")?.text()?.trim() ?: 
+                               "Episódio $epNumber"
+                    this.season = 1
+                    this.episode = epNumber
+                    
+                    // Adiciona thumbnail
+                    this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" } ?:
+                                   episodeItem.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+                    
+                    // Adiciona sinopse do episódio
+                    this.description = tmdbEpisode?.overview
+                    
+                    // Adiciona data de lançamento
+                    tmdbEpisode?.air_date?.let { airDate ->
+                        try {
+                            val dateFormatter = java.text.SimpleDateFormat("yyyy-MM-dd")
+                            val date = dateFormatter.parse(airDate)
+                            this.date = date.time
+                        } catch (e: Exception) {
+                            this.description = (this.description ?: "") + "\n\nLançado em: $airDate"
+                        }
                     }
-                )
+                }
+                
+                episodes.add(episode)
             }
         }
         
@@ -532,7 +556,8 @@ class SuperFlix : MainAPI() {
         val name: String,
         val overview: String?,
         val still_path: String?,
-        val runtime: Int?
+        val runtime: Int?,
+        val air_date: String?  // Adicionado: data de lançamento
     )
 
     private data class TMDBSearchResponse(
@@ -560,7 +585,8 @@ class SuperFlix : MainAPI() {
     )
 
     private data class TMDBSeasonResponse(
-        @JsonProperty("episodes") val episodes: List<TMDBEpisode>
+        @JsonProperty("episodes") val episodes: List<TMDBEpisode>,
+        @JsonProperty("air_date") val air_date: String?  // Data da temporada
     )
 
     private data class TMDBGenre(val name: String)
