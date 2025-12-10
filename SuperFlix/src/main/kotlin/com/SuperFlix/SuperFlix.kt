@@ -134,22 +134,6 @@ class SuperFlix : MainAPI() {
         val isSerie = url.contains("/serie/") || url.contains("/tv/") ||
                      (!isAnime && document.selectFirst(".episode-list, .season-list, .seasons") != null)
 
-        // Extrair informações de áudio (dublado/legendado) da página principal
-        val audioInfoFromMainPage = extractAudioInfoFromMainPage(document)
-        
-        // Se não encontrou na página principal, tenta extrair do player
-        val audioInfo = if (audioInfoFromMainPage.isEmpty()) {
-            extractAudioInfoFromPlayer(document)
-        } else {
-            audioInfoFromMainPage
-        }
-        
-        // Extrair tags do site
-        val tags = extractTagsFromSite(document)
-        
-        // Adicionar informação de áudio às tags
-        val allTags = combineTagsWithAudioInfo(tags, audioInfo)
-
         val tmdbInfo = if (isAnime || isSerie) {
             searchOnTMDB(cleanTitle, year, true)
         } else {
@@ -159,194 +143,10 @@ class SuperFlix : MainAPI() {
         val siteRecommendations = extractRecommendationsFromSite(document)
 
         return if (tmdbInfo != null) {
-            createLoadResponseWithTMDB(tmdbInfo, url, document, isAnime, isSerie, siteRecommendations, allTags)
+            createLoadResponseWithTMDB(tmdbInfo, url, document, isAnime, isSerie, siteRecommendations)
         } else {
-            createLoadResponseFromSite(document, url, cleanTitle, year, isAnime, isSerie, allTags)
+            createLoadResponseFromSite(document, url, cleanTitle, year, isAnime, isSerie)
         }
-    }
-
-    private fun extractAudioInfoFromMainPage(document: org.jsoup.nodes.Document): List<String> {
-        val audioInfo = mutableListOf<String>()
-        
-        try {
-            // Método 1: Procurar por termos específicos no texto
-            val fullText = document.text().lowercase()
-            
-            // Verificar por "dublado"
-            if (fullText.contains("dublado") || fullText.contains("dublagem") || fullText.contains("dublado em português")) {
-                audioInfo.add("Dublado")
-            }
-            
-            // Verificar por "legendado" 
-            if (fullText.contains("legendado") || fullText.contains("legenda") || fullText.contains("legendado em português")) {
-                audioInfo.add("Legendado")
-            }
-            
-            // Método 2: Procurar em elementos específicos (como chips, badges, etc.)
-            document.select(".chip, .badge, .tag, .audio-info, .language-info, [class*='audio'], [class*='lang']").forEach { element ->
-                val text = element.text().lowercase()
-                when {
-                    text.contains("dublado") && !audioInfo.contains("Dublado") -> audioInfo.add("Dublado")
-                    text.contains("legendado") && !audioInfo.contains("Legendado") -> audioInfo.add("Legendado")
-                    text.contains("dublagem") && !audioInfo.contains("Dublado") -> audioInfo.add("Dublado")
-                    text.contains("legenda") && !audioInfo.contains("Legendado") -> audioInfo.add("Legendado")
-                    text.contains("pt-br") || text.contains("português") -> {
-                        // Se mencionar português mas não especificar, adiciona ambos
-                        if (!audioInfo.contains("Dublado") && !audioInfo.contains("Legendado")) {
-                            audioInfo.add("Dublado e Legendado")
-                        }
-                    }
-                }
-            }
-            
-            // Método 3: Verificar meta tags
-            document.select("meta[name*='audio'], meta[property*='audio'], meta[name*='lang'], meta[property*='lang']").forEach { element ->
-                val content = element.attr("content").lowercase()
-                if (content.contains("pt") || content.contains("portuguese")) {
-                    if (!audioInfo.contains("Dublado") && !audioInfo.contains("Legendado")) {
-                        audioInfo.add("Dublado e Legendado")
-                    }
-                }
-            }
-            
-            // Se encontrou "Dublado" e "Legendado" separados, combinar em "Dublado e Legendado"
-            if (audioInfo.contains("Dublado") && audioInfo.contains("Legendado")) {
-                audioInfo.remove("Dublado")
-                audioInfo.remove("Legendado")
-                audioInfo.add("Dublado e Legendado")
-            }
-            
-        } catch (e: Exception) {
-            // Silenciosamente ignorar erros
-        }
-        
-        return audioInfo.distinct()
-    }
-
-    private fun extractAudioInfoFromPlayer(document: org.jsoup.nodes.Document): List<String> {
-        val audioInfo = mutableListOf<String>()
-        
-        try {
-            // Método 1: Analisar o iframe do player (Fembed)
-            val iframeSrc = document.selectFirst("iframe[src*='fembed']")?.attr("src")
-            if (iframeSrc != null) {
-                // Analisar a URL do iframe para ver se menciona áudio
-                val srcLower = iframeSrc.lowercase()
-                if (srcLower.contains("dub") || srcLower.contains("dublado")) {
-                    audioInfo.add("Dublado")
-                }
-                if (srcLower.contains("leg") || srcLower.contains("legendado")) {
-                    audioInfo.add("Legendado")
-                }
-            }
-            
-            // Método 2: Analisar botões/data attributes do player
-            document.select("button[data-lang], a[data-lang], [data-audio]").forEach { element ->
-                val dataLang = element.attr("data-lang").lowercase()
-                val dataAudio = element.attr("data-audio").lowercase()
-                
-                when {
-                    dataLang.contains("dub") || dataAudio.contains("dub") -> 
-                        if (!audioInfo.contains("Dublado")) audioInfo.add("Dublado")
-                    
-                    dataLang.contains("leg") || dataAudio.contains("leg") -> 
-                        if (!audioInfo.contains("Legendado")) audioInfo.add("Legendado")
-                    
-                    dataLang.contains("pt") || dataAudio.contains("pt") -> {
-                        if (!audioInfo.contains("Dublado") && !audioInfo.contains("Legendado")) {
-                            audioInfo.add("Dublado e Legendado")
-                        }
-                    }
-                }
-            }
-            
-            // Método 3: Analisar texto de opções de áudio no player
-            val playerText = document.select(".player-wrap, .player, #player, iframe").text().lowercase()
-            if (playerText.contains("dublado") || playerText.contains("dublagem")) {
-                if (!audioInfo.contains("Dublado")) audioInfo.add("Dublado")
-            }
-            if (playerText.contains("legendado") || playerText.contains("legenda")) {
-                if (!audioInfo.contains("Legendado")) audioInfo.add("Legendado")
-            }
-            
-            // Método 4: Tentar acessar o player diretamente (se for fácil)
-            // Nota: Isso pode ser pesado, então só fazemos se necessário
-            if (audioInfo.isEmpty()) {
-                // Tentar ver se há múltiplos players/links
-                val playButtons = document.select("button.bd-play[data-url], [data-player]")
-                playButtons.forEach { button ->
-                    val dataUrl = button.attr("data-url") ?: button.attr("data-player")
-                    if (dataUrl != null) {
-                        val urlLower = dataUrl.lowercase()
-                        if (urlLower.contains("dub") && !audioInfo.contains("Dublado")) {
-                            audioInfo.add("Dublado")
-                        }
-                        if (urlLower.contains("leg") && !audioInfo.contains("Legendado")) {
-                            audioInfo.add("Legendado")
-                        }
-                    }
-                }
-            }
-            
-            // Se encontrou "Dublado" e "Legendado" separados, combinar
-            if (audioInfo.contains("Dublado") && audioInfo.contains("Legendado")) {
-                audioInfo.remove("Dublado")
-                audioInfo.remove("Legendado")
-                audioInfo.add("Dublado e Legendado")
-            }
-            
-            // Se não encontrou nada, assumir que pode ter ambos (padrão para filmes brasileiros)
-            if (audioInfo.isEmpty() && document.selectFirst("iframe[src*='fembed']") != null) {
-                audioInfo.add("Dublado e Legendado")
-            }
-            
-        } catch (e: Exception) {
-            // Silenciosamente ignorar erros
-        }
-        
-        return audioInfo.distinct()
-    }
-
-    private fun extractTagsFromSite(document: org.jsoup.nodes.Document): List<String>? {
-        return try {
-            // Extrair tags dos chips/categorias
-            val tags = document.select("a.chip, .chip, .genre, .tags, .category, a[href*='/categoria/']")
-                .mapNotNull { it.text().trim() }
-                .filter { it.isNotBlank() }
-                .distinct()
-                .takeIf { it.isNotEmpty() }
-            
-            // Extrair também de meta tags (se não encontrou nos chips)
-            if (tags.isNullOrEmpty()) {
-                document.select("meta[name='keywords'], meta[property='keywords']")
-                    .firstOrNull()
-                    ?.attr("content")
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotBlank() }
-                    ?.takeIf { it.isNotEmpty() }
-            } else {
-                tags
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun combineTagsWithAudioInfo(tags: List<String>?, audioInfo: List<String>): List<String>? {
-        val combined = mutableListOf<String>()
-        
-        // Adicionar tags existentes
-        tags?.let { combined.addAll(it) }
-        
-        // Adicionar informação de áudio (se houver)
-        audioInfo.forEach { info ->
-            if (!combined.contains(info)) {
-                combined.add(info)
-            }
-        }
-        
-        return combined.takeIf { it.isNotEmpty() }
     }
 
     private suspend fun searchOnTMDB(query: String, year: Int?, isTv: Boolean): TMDBInfo? {
@@ -485,8 +285,7 @@ class SuperFlix : MainAPI() {
         document: org.jsoup.nodes.Document,
         isAnime: Boolean,
         isSerie: Boolean,
-        siteRecommendations: List<SearchResponse>,
-        tags: List<String>?
+        siteRecommendations: List<SearchResponse>
     ): LoadResponse {
         return if (isAnime || isSerie) {
             val episodes = extractEpisodesWithTMDBInfo(
@@ -509,7 +308,7 @@ class SuperFlix : MainAPI() {
                 this.backgroundPosterUrl = tmdbInfo.backdropUrl
                 this.year = tmdbInfo.year
                 this.plot = tmdbInfo.overview
-                this.tags = tags ?: tmdbInfo.genres
+                this.tags = tmdbInfo.genres
 
                 tmdbInfo.actors?.let { actors ->
                     addActors(actors)
@@ -534,7 +333,7 @@ class SuperFlix : MainAPI() {
                 this.backgroundPosterUrl = tmdbInfo.backdropUrl
                 this.year = tmdbInfo.year
                 this.plot = tmdbInfo.overview
-                this.tags = tags ?: tmdbInfo.genres
+                this.tags = tmdbInfo.genres
                 this.duration = tmdbInfo.duration
 
                 tmdbInfo.actors?.let { actors ->
@@ -813,8 +612,7 @@ class SuperFlix : MainAPI() {
         title: String,
         year: Int?,
         isAnime: Boolean,
-        isSerie: Boolean,
-        tags: List<String>?
+        isSerie: Boolean
     ): LoadResponse {
         val ogImage = document.selectFirst("meta[property='og:image']")?.attr("content")
         val poster = ogImage?.let { fixUrl(it) }
@@ -822,6 +620,9 @@ class SuperFlix : MainAPI() {
         val description = document.selectFirst("meta[name='description']")?.attr("content")
         val synopsis = document.selectFirst(".syn, .description, .sinopse, .plot")?.text()
         val plot = description ?: synopsis
+
+        val tags = document.select("a.chip, .chip, .genre, .tags").map { it.text() }
+            .takeIf { it.isNotEmpty() }?.toList()
 
         val siteRecommendations = extractRecommendationsFromSite(document)
 
@@ -858,4 +659,118 @@ class SuperFlix : MainAPI() {
     }
 
     private fun findPlayerUrl(document: org.jsoup.nodes.Document): String? {
-        val playButton = document.selectFirst("button.bd-play
+        val playButton = document.selectFirst("button.bd-play[data-url]")
+        if (playButton != null) return playButton.attr("data-url")
+        val iframe = document.selectFirst("iframe[src*='fembed'], iframe[src*='filemoon'], iframe[src*='player'], iframe[src*='embed']")
+        if (iframe != null) return iframe.attr("src")
+        val videoLink = document.selectFirst("a[href*='.m3u8'], a[href*='.mp4'], a[href*='watch']")
+        return videoLink?.attr("href")
+    }
+
+    // Classes de dados para o AnimeSkip
+    private data class AnimeSkipInfo(
+        val startTime: Double?,
+        val endTime: Double?,
+        val skipType: String?
+    )
+
+    private data class AnimeSkipResponse(
+        @JsonProperty("found") val found: Boolean,
+        @JsonProperty("results") val results: List<AnimeSkipResult>?
+    )
+
+    private data class AnimeSkipResult(
+        @JsonProperty("interval") val interval: AnimeSkipInterval?,
+        @JsonProperty("skipType") val skipType: String?,
+        @JsonProperty("skipId") val skipId: String?,
+        @JsonProperty("episodeLength") val episodeLength: Double?
+    )
+
+    private data class AnimeSkipInterval(
+        @JsonProperty("startTime") val startTime: Double?,
+        @JsonProperty("endTime") val endTime: Double?
+    )
+
+    private data class TMDBInfo(
+        val id: Int,
+        val title: String?,
+        val year: Int?,
+        val posterUrl: String?,
+        val backdropUrl: String?,
+        val overview: String?,
+        val genres: List<String>?,
+        val actors: List<Actor>?,
+        val youtubeTrailer: String?,
+        val duration: Int?,
+        val seasonsEpisodes: Map<Int, List<TMDBEpisode>> = emptyMap()
+    )
+
+    private data class TMDBEpisode(
+        @JsonProperty("episode_number") val episode_number: Int,
+        @JsonProperty("name") val name: String,
+        @JsonProperty("overview") val overview: String?,
+        @JsonProperty("still_path") val still_path: String?,
+        @JsonProperty("runtime") val runtime: Int?,
+        @JsonProperty("air_date") val air_date: String?
+    )
+
+    private data class TMDBSearchResponse(
+        @JsonProperty("results") val results: List<TMDBResult>
+    )
+
+    private data class TMDBResult(
+        @JsonProperty("id") val id: Int,
+        @JsonProperty("title") val title: String? = null,
+        @JsonProperty("name") val name: String? = null,
+        @JsonProperty("release_date") val release_date: String? = null,
+        @JsonProperty("first_air_date") val first_air_date: String? = null,
+        @JsonProperty("poster_path") val poster_path: String?
+    )
+
+    private data class TMDBDetailsResponse(
+        @JsonProperty("overview") val overview: String?,
+        @JsonProperty("backdrop_path") val backdrop_path: String?,
+        @JsonProperty("runtime") val runtime: Int?,
+        @JsonProperty("genres") val genres: List<TMDBGenre>?,
+        @JsonProperty("credits") val credits: TMDBCredits?,
+        @JsonProperty("videos") val videos: TMDBVideos?
+    )
+
+    private data class TMDBTVDetailsResponse(
+        @JsonProperty("seasons") val seasons: List<TMDBSeasonInfo>
+    )
+
+    private data class TMDBSeasonInfo(
+        @JsonProperty("season_number") val season_number: Int,
+        @JsonProperty("episode_count") val episode_count: Int
+    )
+
+    private data class TMDBSeasonResponse(
+        @JsonProperty("episodes") val episodes: List<TMDBEpisode>,
+        @JsonProperty("air_date") val air_date: String?
+    )
+
+    private data class TMDBGenre(
+        @JsonProperty("name") val name: String
+    )
+
+    private data class TMDBCredits(
+        @JsonProperty("cast") val cast: List<TMDBCast>
+    )
+
+    private data class TMDBCast(
+        @JsonProperty("name") val name: String,
+        @JsonProperty("character") val character: String?,
+        @JsonProperty("profile_path") val profile_path: String?
+    )
+
+    private data class TMDBVideos(
+        @JsonProperty("results") val results: List<TMDBVideo>
+    )
+
+    private data class TMDBVideo(
+        @JsonProperty("key") val key: String,
+        @JsonProperty("site") val site: String,
+        @JsonProperty("type") val type: String
+    )
+}
