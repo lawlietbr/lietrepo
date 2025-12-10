@@ -1,6 +1,6 @@
 {
-  "name": "CloudStream Brasil Repo",
-  "description": "Repositório Brasileiro de Provedores CloudStream",
+  "name": "lietrepo",
+  "description": "repositório BR do cloudstream",
   "manifestVersion": 1,
   "pluginLists": ["https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/plugins.json"]
 }
