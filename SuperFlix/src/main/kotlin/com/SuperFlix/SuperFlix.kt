@@ -21,6 +21,10 @@ class SuperFlix : MainAPI() {
     private val tmdbApiKey = "f9a1e262f2251496b1efa1cd5759680a"
     private val tmdbBaseUrl = "https://api.themoviedb.org/3"
     private val tmdbImageUrl = "https://image.tmdb.org/t/p"
+    
+    // API do AnimeSkip para timestamps de abertura
+    private val aniskipApiUrl = "https://api.aniskip.com/v2"
+    private val aniskipApiKey = "skip-op-intro" // Chave padrão do AnimeSkip
 
     override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
@@ -218,8 +222,6 @@ class SuperFlix : MainAPI() {
         ?.sortedByDescending { it.second }
         ?.firstOrNull()
         ?.let { (key, _, _) ->
-            // SOLUÇÃO: Usar URL completa do YouTube como o TMDB faz
-            // Esta URL permite que o YouTube otimize a qualidade automaticamente
             "https://www.youtube.com/watch?v=$key"
         }
     }
@@ -410,12 +412,20 @@ class SuperFlix : MainAPI() {
 
                     val tmdbEpisode = findTMDBEpisode(tmdbInfo, seasonNumber, epNumber)
 
+                    // Buscar timestamps de abertura do AnimeSkip (apenas para animes)
+                    val skipTimes = if (isAnime && tmdbInfo?.id != null) {
+                        getAnimeSkipTimes(tmdbInfo.id, seasonNumber, epNumber)
+                    } else {
+                        null
+                    }
+
                     val episode = createEpisode(
                         dataUrl = dataUrl,
                         seasonNumber = seasonNumber,
                         episodeNumber = epNumber,
                         element = element,
                         tmdbEpisode = tmdbEpisode,
+                        skipTimes = skipTimes,
                         isAnime = isAnime,
                         isSerie = isSerie
                     )
@@ -436,12 +446,20 @@ class SuperFlix : MainAPI() {
 
                     val tmdbEpisode = findTMDBEpisode(tmdbInfo, seasonNumber, epNumber)
 
+                    // Buscar timestamps de abertura do AnimeSkip (apenas para animes)
+                    val skipTimes = if (isAnime && tmdbInfo?.id != null) {
+                        getAnimeSkipTimes(tmdbInfo.id, seasonNumber, epNumber)
+                    } else {
+                        null
+                    }
+
                     val episode = createEpisode(
                         dataUrl = dataUrl,
                         seasonNumber = seasonNumber,
                         episodeNumber = epNumber,
                         element = element,
                         tmdbEpisode = tmdbEpisode,
+                        skipTimes = skipTimes,
                         isAnime = isAnime,
                         isSerie = isSerie
                     )
@@ -467,12 +485,52 @@ class SuperFlix : MainAPI() {
         return tmdbInfo?.seasonsEpisodes?.get(season)?.find { it.episode_number == episode }
     }
 
+    private suspend fun getAnimeSkipTimes(malId: Int?, seasonNumber: Int, episodeNumber: Int): AnimeSkipResponse? {
+        if (malId == null) return null
+        
+        return try {
+            val url = "$aniskipApiUrl/skip-times/$malId/$seasonNumber/$episodeNumber" +
+                     "?types[]=op&types[]=ed&types[]=mixed-op&types[]=recap&episodeLength="
+            
+            val response = app.get(
+                url,
+                headers = mapOf(
+                    "Accept" to "application/json",
+                    "Content-Type" to "application/json"
+                ),
+                timeout = 10_000
+            )
+            
+            val result = response.parsedSafe<AnimeSkipResponse>()
+            
+            // Filtrar apenas aberturas (op) e evitar recaps
+            val validSkips = result?.results?.filter { skip ->
+                (skip.skipType == "op" || skip.skipType == "mixed-op") && 
+                skip.skipType != "recap" &&
+                skip.interval?.startTime != null && 
+                skip.interval?.endTime != null &&
+                skip.interval.startTime >= 0 &&
+                skip.interval.endTime > skip.interval.startTime
+            }
+            
+            if (validSkips?.isNotEmpty() == true) {
+                // Usar o primeiro timestamp válido
+                validSkips[0]
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun createEpisode(
         dataUrl: String,
         seasonNumber: Int,
         episodeNumber: Int,
         element: Element,
         tmdbEpisode: TMDBEpisode?,
+        skipTimes: AnimeSkipResponse? = null,
         isAnime: Boolean,
         isSerie: Boolean = false
     ): Episode {
@@ -487,8 +545,28 @@ class SuperFlix : MainAPI() {
             this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" } ?:
                             element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
 
-            val descriptionBuilder = StringBuilder()
+            // Adicionar timestamps para pular abertura se disponíveis
+            skipTimes?.let { skip ->
+                skip.interval?.let { interval ->
+                    if (interval.startTime != null && interval.endTime != null) {
+                        // Adicionar timestamp para pular abertura
+                        this.skipTime = SkipTime(
+                            interval.startTime!!.toInt(),
+                            interval.endTime!!.toInt(),
+                            skip.skipType ?: "op"
+                        )
+                        
+                        // Se for uma abertura (op), também podemos adicionar no description
+                        if (skip.skipType == "op" || skip.skipType == "mixed-op") {
+                            this.description = "Abertura: ${interval.startTime!!.toInt()}s - ${interval.endTime!!.toInt()}s\n\n"
+                        }
+                    }
+                }
+            }
 
+            val descriptionBuilder = StringBuilder()
+            
+            // Adicionar descrição do TMDB se disponível
             tmdbEpisode?.overview?.let { overview ->
                 descriptionBuilder.append(overview)
             }
@@ -521,7 +599,12 @@ class SuperFlix : MainAPI() {
                 }
             }
 
-            this.description = descriptionBuilder.toString().takeIf { it.isNotEmpty() }
+            // Adicionar ao description se ainda não tiver sido adicionado
+            if (this.description == null && descriptionBuilder.isNotEmpty()) {
+                this.description = descriptionBuilder.toString()
+            } else if (this.description != null && descriptionBuilder.isNotEmpty()) {
+                this.description += descriptionBuilder.toString()
+            }
         }
     }
 
@@ -585,6 +668,24 @@ class SuperFlix : MainAPI() {
         val videoLink = document.selectFirst("a[href*='.m3u8'], a[href*='.mp4'], a[href*='watch']")
         return videoLink?.attr("href")
     }
+
+    // Classes de dados para o AnimeSkip
+    private data class AnimeSkipResponse(
+        @JsonProperty("found") val found: Boolean,
+        @JsonProperty("results") val results: List<AnimeSkipResult>?
+    )
+
+    private data class AnimeSkipResult(
+        @JsonProperty("interval") val interval: AnimeSkipInterval?,
+        @JsonProperty("skipType") val skipType: String?,
+        @JsonProperty("skipId") val skipId: String?,
+        @JsonProperty("episodeLength") val episodeLength: Double?
+    )
+
+    private data class AnimeSkipInterval(
+        @JsonProperty("startTime") val startTime: Double?,
+        @JsonProperty("endTime") val endTime: Double?
+    )
 
     private data class TMDBInfo(
         val id: Int,
