@@ -144,9 +144,12 @@ class SuperFlix : MainAPI() {
             searchOnTMDB(cleanTitle, year, false)
         }
 
+        // Extrai recomendações do site (sempre, mesmo com TMDB)
+        val siteRecommendations = extractRecommendationsFromSite(document)
+
         return if (tmdbInfo != null) {
             println("✅ SuperFlix: Dados do TMDB encontrados para '$cleanTitle'")
-            createLoadResponseWithTMDB(tmdbInfo, url, document, isAnime, isSerie)
+            createLoadResponseWithTMDB(tmdbInfo, url, document, isAnime, isSerie, siteRecommendations)
         } else {
             println("⚠️ SuperFlix: Usando dados do site para '$cleanTitle'")
             createLoadResponseFromSite(document, url, cleanTitle, year, isAnime, isSerie)
@@ -212,10 +215,7 @@ class SuperFlix : MainAPI() {
                 actors = allActors?.take(15), // Mostra os 15 primeiros atores (mais importantes)
                 youtubeTrailer = youtubeTrailer,
                 duration = if (!isTv) details?.runtime else null,
-                recommendations = details?.recommendations?.results?.take(5)?.map { rec ->
-                    // CRÍTICO: Cria SearchResponse com informações mínimas para recomendações funcionarem
-                    createSearchResponseFromRecommendation(rec, isTv)
-                },
+                recommendations = null, // Não usa recomendações do TMDB
                 seasonsEpisodes = seasonEpisodes
             )
         } catch (e: Exception) {
@@ -227,40 +227,17 @@ class SuperFlix : MainAPI() {
     private fun getHighQualityTrailer(videos: List<TMDBVideo>?): String? {
         return videos?.filter { it.site == "YouTube" && (it.type == "Trailer" || it.type == "Teaser") }
             ?.sortedByDescending { video ->
-                // Prioridade: Trailer > Teaser
-                when (video.type) {
-                    "Trailer" -> 2
-                    "Teaser" -> 1
-                    else -> 0
+                // Prioridade: Trailer > Teaser, e procura trailers HD/4K
+                when {
+                    video.type == "Trailer" && video.key.contains("hd", ignoreCase = true) -> 5
+                    video.type == "Trailer" && video.key.contains("4k", ignoreCase = true) -> 4
+                    video.type == "Trailer" -> 3
+                    video.type == "Teaser" -> 2
+                    else -> 1
                 }
             }
             ?.firstOrNull()
             ?.key
-    }
-
-    private fun createSearchResponseFromRecommendation(rec: TMDBRecommendationResult, isTv: Boolean): SearchResponse {
-        val title = if (isTv) rec.name ?: "" else rec.title ?: ""
-        val year = if (isTv) rec.first_air_date?.substring(0, 4)?.toIntOrNull()
-                  else rec.release_date?.substring(0, 4)?.toIntOrNull()
-        val posterUrl = rec.poster_path?.let { "$tmdbImageUrl/w500$it" }
-
-        // IMPORTANTE: Criamos um ID TMDB fictício para a recomendação poder ser carregada depois
-        // Quando o usuário clicar, será feito nova busca no TMDB
-        val tmdbId = rec.id ?: 0
-        
-        return if (isTv) {
-            // Para séries, criamos uma URL especial que será processada na função load
-            newTvSeriesSearchResponse(title, "tmdb://tv/$tmdbId", TvType.TvSeries) {
-                this.posterUrl = posterUrl
-                this.year = year
-            }
-        } else {
-            // Para filmes, criamos uma URL especial que será processada na função load
-            newMovieSearchResponse(title, "tmdb://movie/$tmdbId", TvType.Movie) {
-                this.posterUrl = posterUrl
-                this.year = year
-            }
-        }
     }
 
     private suspend fun getTMDBDetailsWithFullCredits(id: Int, isTv: Boolean): TMDBDetailsResponse? {
@@ -271,7 +248,13 @@ class SuperFlix : MainAPI() {
                      "&language=pt-BR" +
                      "&append_to_response=credits,videos,recommendations"
 
-            app.get(url, timeout = 10_000).parsedSafe<TMDBDetailsResponse>()
+            val response = app.get(url, timeout = 10_000)
+            val details = response.parsedSafe<TMDBDetailsResponse>()
+            
+            val actorCount = details?.credits?.cast?.size ?: 0
+            println("🎭 TMDB Detalhes: $actorCount atores retornados para ID $id")
+            
+            details
         } catch (e: Exception) {
             println("❌ TMDB: Erro nos detalhes - ${e.message}")
             null
@@ -324,24 +307,17 @@ class SuperFlix : MainAPI() {
         url: String,
         document: org.jsoup.nodes.Document,
         isAnime: Boolean,
-        isSerie: Boolean
+        isSerie: Boolean,
+        siteRecommendations: List<SearchResponse>
     ): LoadResponse {
-        // Verifica se é uma URL especial do TMDB (de recomendação)
-        val isTMDBRecommendation = url.startsWith("tmdb://")
-        
         return if (isAnime || isSerie) {
-            val episodes = if (!isTMDBRecommendation) {
-                extractEpisodesWithTMDBInfo(
-                    document = document,
-                    url = url,
-                    tmdbInfo = tmdbInfo,
-                    isAnime = isAnime,
-                    isSerie = isSerie
-                )
-            } else {
-                // Para recomendações, não extrai episódios (será feito quando carregar o conteúdo real)
-                emptyList()
-            }
+            val episodes = extractEpisodesWithTMDBInfo(
+                document = document,
+                url = url,
+                tmdbInfo = tmdbInfo,
+                isAnime = isAnime,
+                isSerie = isSerie
+            )
 
             val type = if (isAnime) TvType.Anime else TvType.TvSeries
 
@@ -367,29 +343,11 @@ class SuperFlix : MainAPI() {
                     addTrailer(trailerUrl)
                 }
 
-                // Transforma recomendações em SearchResponse funcionais
-                this.recommendations = tmdbInfo.recommendations?.mapNotNull { rec ->
-                    if (rec.url.isNotBlank()) {
-                        // Se já é um SearchResponse, retorna como está
-                        rec
-                    } else {
-                        // Fallback para recomendações antigas
-                        if (rec.isMovie) {
-                            newMovieSearchResponse(rec.title ?: "", "", TvType.Movie) {
-                                this.posterUrl = rec.posterUrl
-                                this.year = rec.year
-                            }
-                        } else {
-                            newTvSeriesSearchResponse(rec.title ?: "", "", TvType.TvSeries) {
-                                this.posterUrl = rec.posterUrl
-                                this.year = rec.year
-                            }
-                        }
-                    }
-                }
+                // Usa recomendações do site (com URLs reais)
+                this.recommendations = siteRecommendations.takeIf { it.isNotEmpty() }
             }
         } else {
-            val playerUrl = if (!isTMDBRecommendation) findPlayerUrl(document) else null
+            val playerUrl = findPlayerUrl(document)
 
             newMovieLoadResponse(
                 name = tmdbInfo.title ?: "",
@@ -414,26 +372,53 @@ class SuperFlix : MainAPI() {
                     addTrailer(trailerUrl)
                 }
 
-                // Transforma recomendações em SearchResponse funcionais
-                this.recommendations = tmdbInfo.recommendations?.mapNotNull { rec ->
-                    if (rec.url.isNotBlank()) {
-                        // Se já é um SearchResponse, retorna como está
-                        rec
-                    } else {
-                        // Fallback para recomendações antigas
-                        if (rec.isMovie) {
-                            newMovieSearchResponse(rec.title ?: "", "", TvType.Movie) {
-                                this.posterUrl = rec.posterUrl
-                                this.year = rec.year
-                            }
-                        } else {
-                            newTvSeriesSearchResponse(rec.title ?: "", "", TvType.TvSeries) {
-                                this.posterUrl = rec.posterUrl
-                                this.year = rec.year
-                            }
-                        }
+                // Usa recomendações do site (com URLs reais)
+                this.recommendations = siteRecommendations.takeIf { it.isNotEmpty() }
+            }
+        }
+    }
+
+    // =========================================================================
+    // EXTRATIR RECOMENDAÇÕES DO SITE (COM URLs REAIS)
+    // =========================================================================
+    private fun extractRecommendationsFromSite(document: org.jsoup.nodes.Document): List<SearchResponse> {
+        return document.select(".recs-grid .rec-card, .recs-grid a").mapNotNull { element ->
+            try {
+                val href = element.attr("href") ?: return@mapNotNull null
+                if (href.isBlank() || href == "#") return@mapNotNull null
+                
+                val imgElement = element.selectFirst("img")
+                val title = imgElement?.attr("alt") ?: 
+                           element.selectFirst(".rec-title")?.text() ?: 
+                           element.attr("title") ?: 
+                           return@mapNotNull null
+                
+                val poster = imgElement?.attr("src")?.let { fixUrl(it) }
+                val cleanTitle = title.replace(Regex("\\(\\d{4}\\)"), "").trim()
+                val year = Regex("\\((\\d{4})\\)").find(title)?.groupValues?.get(1)?.toIntOrNull()
+                
+                // Determina tipo de conteúdo
+                val isAnime = href.contains("/anime/") || title.contains("(Anime)", ignoreCase = true)
+                val isSerie = href.contains("/serie/") || href.contains("/tv/")
+                val isMovie = !isSerie && !isAnime
+
+                when {
+                    isAnime -> newAnimeSearchResponse(cleanTitle, fixUrl(href), TvType.Anime) {
+                        this.posterUrl = poster
+                        this.year = year
+                    }
+                    isSerie -> newTvSeriesSearchResponse(cleanTitle, fixUrl(href), TvType.TvSeries) {
+                        this.posterUrl = poster
+                        this.year = year
+                    }
+                    else -> newMovieSearchResponse(cleanTitle, fixUrl(href), TvType.Movie) {
+                        this.posterUrl = poster
+                        this.year = year
                     }
                 }
+            } catch (e: Exception) {
+                println("❌ Erro ao processar recomendação: ${e.message}")
+                null
             }
         }
     }
@@ -594,6 +579,8 @@ class SuperFlix : MainAPI() {
         val tags = document.select("a.chip, .chip, .genre, .tags").map { it.text() }
             .takeIf { it.isNotEmpty() }?.toList()
 
+        val siteRecommendations = extractRecommendationsFromSite(document)
+
         return if (isAnime || isSerie) {
             val type = if (isAnime) TvType.Anime else TvType.TvSeries
             val episodes = extractEpisodesWithTMDBInfo(document, url, null, isAnime, isSerie)
@@ -603,6 +590,7 @@ class SuperFlix : MainAPI() {
                 this.year = year
                 this.plot = plot
                 this.tags = tags
+                this.recommendations = siteRecommendations.takeIf { it.isNotEmpty() }
             }
         } else {
             val playerUrl = findPlayerUrl(document)
@@ -611,6 +599,7 @@ class SuperFlix : MainAPI() {
                 this.year = year
                 this.plot = plot
                 this.tags = tags
+                this.recommendations = siteRecommendations.takeIf { it.isNotEmpty() }
             }
         }
     }
@@ -647,7 +636,7 @@ class SuperFlix : MainAPI() {
         val actors: List<Actor>?,
         val youtubeTrailer: String?,
         val duration: Int?,
-        val recommendations: List<SearchResponse>?, // AGORA É SearchResponse REAL
+        val recommendations: List<TMDBRecommendation>?,
         val seasonsEpisodes: Map<Int, List<TMDBEpisode>> = emptyMap()
     )
 
@@ -655,8 +644,7 @@ class SuperFlix : MainAPI() {
         val title: String?,
         val posterUrl: String?,
         val year: Int?,
-        val isMovie: Boolean,
-        val url: String = "" // Adicionado para suportar SearchResponse
+        val isMovie: Boolean
     )
 
     private data class TMDBEpisode(
@@ -735,7 +723,6 @@ class SuperFlix : MainAPI() {
     )
 
     private data class TMDBRecommendationResult(
-        @JsonProperty("id") val id: Int? = null, // Adicionado para suportar recomendações
         @JsonProperty("title") val title: String? = null,
         @JsonProperty("name") val name: String? = null,
         @JsonProperty("poster_path") val poster_path: String?,
