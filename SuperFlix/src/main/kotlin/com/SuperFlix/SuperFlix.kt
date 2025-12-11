@@ -21,11 +21,6 @@ class SuperFlix : MainAPI() {
     internal val tmdbApiKey = Build.Config.TMDB_API_KEY
     internal val tmdbBaseUrl = "https://api.themoviedb.org/3"
     internal val tmdbImageUrl = "https://image.tmdb.org/t/p"
- if (tmdbApiKey.isNotEmpty()) {
-   Log.d("A chave tem ${tmdbApiKey.length} caracteres🔥🔥🔥🔥")
- } else {
-   Log.e("A chave tmdb está vazia ou nula 🚫🚫")
-   }
    
  override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
