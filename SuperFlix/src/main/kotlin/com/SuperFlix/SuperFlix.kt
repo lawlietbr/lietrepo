@@ -18,11 +18,16 @@ class SuperFlix : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
     override val usesWebView = true
 
-    internal val tmdbApiKey = Build.ConfigTMDB_API_KEY
+    internal val tmdbApiKey = Build.Config.TMDB_API_KEY
     internal val tmdbBaseUrl = "https://api.themoviedb.org/3"
     internal val tmdbImageUrl = "https://image.tmdb.org/t/p"
-
-    override val mainPage = mainPageOf(
+ if (tmdbApiKey.isNotEmpty()) {
+   Log.d("A chave tem ${tmdbApiKey.length} caracteres🔥🔥🔥🔥")
+ } else {
+   Log.e("A chave tmdb está vazia ou nula 🚫🚫")
+   }
+   
+ override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
         "$mainUrl/filmes" to "Últimos Filmes",
         "$mainUrl/series" to "Últimas Séries",
@@ -153,7 +158,7 @@ class SuperFlix : MainAPI() {
             val yearParam = year?.let { "&year=$it" } ?: ""
 
             val searchUrl = "$tmdbBaseUrl/search/$type?" +
-                           "api_key=${BuildConfig.TMDB_API_KEY}" +
+                           "api_key=$tmdbApiKey" +
                            "&language=pt-BR" +
                            "&query=$encodedQuery" +
                            yearParam +
@@ -228,7 +233,7 @@ class SuperFlix : MainAPI() {
         return try {
             val type = if (isTv) "tv" else "movie"
             val url = "$tmdbBaseUrl/$type/$id?" +
-                     "api_key=${BuildConfig.TMDB_API_KEY}" +
+                     "api_key=$tmdbApiKey" +
                      "&language=pt-BR" +
                      "&append_to_response=credits,videos,recommendations"
 
@@ -242,7 +247,7 @@ class SuperFlix : MainAPI() {
     private suspend fun getTMDBAllSeasons(seriesId: Int): Map<Int, List<TMDBEpisode>> {
         return try {
             val seriesDetailsUrl = "$tmdbBaseUrl/tv/$seriesId?" +
-                                  "api_key=${Build.Config.TMDB_API_KEY}" +
+                                  "api_key=$tmdbApiKey" +
                                   "&language=pt-BR"
 
             val seriesResponse = app.get(seriesDetailsUrl, timeout = 10_000)
@@ -269,7 +274,7 @@ class SuperFlix : MainAPI() {
     private suspend fun getTMDBSeasonDetails(seriesId: Int, seasonNumber: Int): TMDBSeasonResponse? {
         return try {
             val url = "$tmdbBaseUrl/tv/$seriesId/season/$seasonNumber?" +
-                     "api_key=${BuildConfig.TMDB_API_KEY}" +
+                     "api_key=$tmdbApiKey" +
                      "&language=pt-BR"
 
             app.get(url, timeout = 10_000).parsedSafe<TMDBSeasonResponse>()
