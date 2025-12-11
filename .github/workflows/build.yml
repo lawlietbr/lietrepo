@@ -1,4 +1,4 @@
-name: Build SuperFlix
+name: Build e Deploy
 
 on: workflow_dispatch
 
@@ -11,7 +11,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Setup Java
+      - name: Setup
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
@@ -21,46 +21,43 @@ jobs:
         run: |
           chmod +x gradlew
           
-          echo "🔄 Iniciando build..."
-          
-          # Executa sem filtro
+          # Executa build
           output=$(./gradlew :SuperFlix:assembleDebug --stacktrace 2>&1)
           status=$?
           
           if [ $status -eq 0 ]; then
-            echo "✅ Build concluído"
+            echo "✅ Build OK"
             
-            # Sucesso - mostra resumo
-            CS3_FILE=$(find . -name "*.cs3" -type f | head -1)
-            if [ -f "$CS3_FILE" ]; then
-              echo "📦 $(basename "$CS3_FILE")"
-              
-              # Cria release
-              mkdir -p _build
-              cp "$CS3_FILE" "_build/"
-              
-              # JSONs
-              echo '[{"name":"SuperFlix","url":"https://raw.githubusercontent.com/'${{ github.repository }}'/main/_build/'$(basename "$CS3_FILE")'"}]' > _build/plugins.json
-              
-              # Commit
-              git config user.name "GitHub Bot"
-              git config user.email "bot@github.com"
-              git add _build/
-              git commit -m "build" -q
-              git push -q
-              
-              echo ""
-              echo "🔗 https://raw.githubusercontent.com/${{ github.repository }}/main/_build/$(basename "$CS3_FILE")"
-            fi
+            # Copia arquivo
+            file=$(find . -name "*.cs3" -type f | head -1)
+            mkdir -p out
+            cp "$file" out/SuperFlix.cs3
           else
-            # Falha - mostra ERROS REAIS
-            echo ""
-            echo "🔥 ERROS:"
-            echo ""
-            
-            # Extrai erros de compilação
-            echo "$output" | grep -E "^e: |error:|FAIL|✗|❌" || \
-            echo "$output" | tail -30
-            
+            echo "❌ Build falhou"
+            echo "$output" | grep -E "^e: |error:|FAIL" | head -15
             exit 1
           fi
+          
+      - name: Criar JSONs
+        if: success()
+        run: |
+          cat > out/plugins.json << 'EOF'
+          [
+            {
+              "name": "SuperFlix",
+              "url": "https://raw.githubusercontent.com/lawlietbr/lietrepo/main/out/SuperFlix.cs3"
+            }
+          ]
+          EOF
+          
+      - name: Commitar
+        if: success()
+        run: |
+          git config user.name "GitHub Bot"
+          git config user.email "bot@github.com"
+          git add out/
+          git commit -m "build"
+          
+      - name: Push para main  # 🔥 PUSH SEPARADO
+        if: success()
+        run: git push
