@@ -147,7 +147,20 @@ class SuperFlix : MainAPI() {
     }
 
     private suspend fun searchOnTMDB(query: String, year: Int?, isTv: Boolean): TMDBInfo? {
-        return try {
+       logDebug("=== BUSCANDO NO TMDB ===")
+    logDebug("Query: $query")
+    logDebug("Ano: $year")
+    logDebug("Tipo: ${if (isTv) "TV" else "Movie"}")
+    logDebug("TMDB API Key antes da requisição:")
+    logDebug("• Disponível: ${tmdbApiKey.isNotEmpty()}")
+    logDebug("• Tamanho: ${tmdbApiKey.length} chars")
+    
+    if (tmdbApiKey.isEmpty()) {
+        logError("❌ TMDB API Key está VAZIA! Abortando busca.")
+        return null
+    }
+
+ return try {
             val type = if (isTv) "tv" else "movie"
             val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
             val yearParam = year?.let { "&year=$it" } ?: ""
@@ -225,6 +238,9 @@ class SuperFlix : MainAPI() {
     }
 
     private suspend fun getTMDBDetailsWithFullCredits(id: Int, isTv: Boolean): TMDBDetailsResponse? {
+        logDebug("=== DETALHES TMDB ===")
+    logDebug("ID: $id, Tipo: ${if (isTv) "TV" else "Movie"}")
+   logDebug("Chave TMDB disponível: ${tmdbApiKey.isNotEmpty()}")
         return try {
             val type = if (isTv) "tv" else "movie"
             val url = "$tmdbBaseUrl/$type/$id?" +
