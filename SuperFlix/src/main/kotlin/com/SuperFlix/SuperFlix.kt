@@ -18,33 +18,128 @@ class SuperFlix : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
     override val usesWebView = true
 
-internal val tmdbApiKey = Config.TMDB_API_KEY
-    internal val tmdbBaseUrl = Config.TMDB_BASE_URL
-    internal val tmdbImageUrl = Config.TMDB_IMAGE_URL
+    // ============ CONFIGURAÇÃO DO PROXY TMDB ============
+    // URL do seu Cloudflare Worker (100% seguro - chave nunca no app)
+    private val TMDB_PROXY_URL = "https://lawliet.euluan1912.workers.dev"
+    
+    // URLs fixas da TMDB (não contêm a chave)
+    private val TMDB_BASE_URL = "https://api.themoviedb.org/3"
+    private val TMDB_IMAGE_URL = "https://image.tmdb.org/t/p"
 
-private fun forceConfigUsage() {
-        // Estas chamadas FORÇAM o Kotlin a incluir o Config no APK
-        val dummy1 = Config.TMDB_API_KEY.length
-        val dummy2 = Config.TMDB_BASE_URL
-        val dummy3 = Config.TMDB_IMAGE_URL
-        val dummy4 = Config.DEBUG_MODE
-        val dummy5 = Config.REQUEST_TIMEOUT
+    // ============ FUNÇÃO DE BUSCA NO PROXY ============
+    private suspend fun searchOnTMDB(query: String, year: Int?, isTv: Boolean): TMDBInfo? {
+        val type = if (isTv) "tv" else "movie"
         
-        // Log para debug (opcional)
-        if (Config.DEBUG_MODE) {
-            println("🔧 Config forçado no APK")
-            println("📏 TMDB Key size: $dummy1")
+        try {
+            // Constrói URL para o proxy
+            val url = StringBuilder("$TMDB_PROXY_URL/search")
+                .append("?query=${java.net.URLEncoder.encode(query, "UTF-8")}")
+                .append("&type=$type")
+                .append("&language=pt-BR")
+            
+            year?.let {
+                if (it > 1900 && it < 2100) {
+                    url.append("&year=$it")
+                }
+            }
+            
+            println("🔍 Buscando no proxy TMDB: $query (${if (isTv) "TV" else "Movie"})")
+            
+            // Faz requisição para SEU proxy
+            val response = app.get(url.toString(), timeout = 15_000)
+            
+            if (response.status == 200) {
+                val json = JSONObject(response.text)
+                val results = json.optJSONArray("results")
+                
+                if (results != null && results.length() > 0) {
+                    val firstItem = results.getJSONObject(0)
+                    val itemId = firstItem.getInt("id")
+                    
+                    // Busca detalhes usando o proxy também
+                    val details = getTMDBDetailsViaProxy(itemId, isTv)
+                    
+                    return TMDBInfo(
+                        id = itemId,
+                        title = if (isTv) firstItem.optString("name") else firstItem.optString("title"),
+                        year = if (isTv) {
+                            firstItem.optString("first_air_date", "").take(4).toIntOrNull()
+                        } else {
+                            firstItem.optString("release_date", "").take(4).toIntOrNull()
+                        },
+                        posterUrl = firstItem.optString("poster_path", "")?.let { 
+                            "$TMDB_IMAGE_URL/w500$it" 
+                        },
+                        backdropUrl = details?.backdropPath?.let { 
+                            "$TMDB_IMAGE_URL/original$it" 
+                        },
+                        overview = details?.overview ?: firstItem.optString("overview", ""),
+                        genres = details?.genres?.map { it.name },
+                        actors = details?.credits?.cast?.take(15)?.mapNotNull { actor ->
+                            if (actor.name.isNotBlank()) {
+                                Actor(
+                                    name = actor.name,
+                                    image = actor.profilePath?.let { "$TMDB_IMAGE_URL/w185$it" }
+                                )
+                            } else null
+                        },
+                        youtubeTrailer = details?.videos?.results?.find { 
+                            it.site == "YouTube" && it.type == "Trailer" 
+                        }?.key?.let { "https://www.youtube.com/watch?v=$it" },
+                        duration = if (!isTv) details?.runtime else null,
+                        seasonsEpisodes = if (isTv) {
+                            details?.let { getTMDBSeasonsViaProxy(itemId) } ?: emptyMap()
+                        } else emptyMap()
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            println("❌ Erro no proxy TMDB: ${e.message}")
+        }
+        
+        return null
+    }
+    
+    // ============ FUNÇÕES AUXILIARES DO PROXY ============
+    private suspend fun getTMDBDetailsViaProxy(id: Int, isTv: Boolean): TMDBDetailsResponse? {
+        val type = if (isTv) "tv" else "movie"
+        val url = "$TMDB_PROXY_URL/$type/$id"
+        
+        return try {
+            val response = app.get(url, timeout = 10_000)
+            response.parsedSafe<TMDBDetailsResponse>()
+        } catch (e: Exception) {
+            null
         }
     }
     
-    init {
-        // Chama a função no init
-        forceConfigUsage()
-        Config.logConfig()
+    private suspend fun getTMDBSeasonsViaProxy(seriesId: Int): Map<Int, List<TMDBEpisode>> {
+        return try {
+            // Primeiro busca detalhes da série
+            val seriesDetails = getTMDBDetailsViaProxy(seriesId, true) as? TMDBTVDetailsResponse
+            val seasonsMap = mutableMapOf<Int, List<TMDBEpisode>>()
+            
+            // Para cada temporada, busca episódios
+            seriesDetails?.seasons?.forEach { season ->
+                if (season.seasonNumber > 0) {
+                    val url = "$TMDB_PROXY_URL/tv/$seriesId/season/${season.seasonNumber}"
+                    val response = app.get(url, timeout = 10_000)
+                    val seasonData = response.parsedSafe<TMDBSeasonResponse>()
+                    
+                    seasonData?.episodes?.let { episodes ->
+                        seasonsMap[season.seasonNumber] = episodes
+                    }
+                }
+            }
+            
+            seasonsMap
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
-    
- override val mainPage = mainPageOf(
+    // ============ CÓDIGO ORIGINAL DO SUPERFLIX ============
+    override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
         "$mainUrl/filmes" to "Últimos Filmes",
         "$mainUrl/series" to "Últimas Séries",
@@ -165,154 +260,6 @@ private fun forceConfigUsage() {
             createLoadResponseWithTMDB(tmdbInfo, url, document, isAnime, isSerie, siteRecommendations)
         } else {
             createLoadResponseFromSite(document, url, cleanTitle, year, isAnime, isSerie)
-        }
-    }
-
-    private suspend fun searchOnTMDB(query: String, year: Int?, isTv: Boolean): TMDBInfo? {
-       println("=== BUSCANDO NO TMDB ===")
-    println("Query: $query")
-    println("Ano: $year")
-    println("Tipo: ${if (isTv) "TV" else "Movie"}")
-    println("TMDB API Key antes da requisição:")
-    println("• Disponível: ${tmdbApiKey.isNotEmpty()}")
-    println("• Tamanho: ${tmdbApiKey.length} chars")
-    
-    if (tmdbApiKey.isEmpty()) {
-        println("❌ TMDB API Key está VAZIA! Abortando busca.")
-        return null
-    }
-
- return try {
-            val type = if (isTv) "tv" else "movie"
-            val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-            val yearParam = year?.let { "&year=$it" } ?: ""
-
-            val searchUrl = "$tmdbBaseUrl/search/$type?" +
-                           "api_key=$tmdbApiKey" +
-                           "&language=pt-BR" +
-                           "&query=$encodedQuery" +
-                           yearParam +
-                           "&page=1"
-
-            val response = app.get(searchUrl, timeout = 10_000)
-            val searchResult = response.parsedSafe<TMDBSearchResponse>()
-
-            val result = searchResult?.results?.firstOrNull() ?: return null
-
-            val details = getTMDBDetailsWithFullCredits(result.id, isTv)
-            val seasonEpisodes = if (isTv && details != null) {
-                getTMDBAllSeasons(result.id)
-            } else {
-                emptyMap()
-            }
-
-            val allActors = details?.credits?.cast?.mapNotNull { actor ->
-                if (actor.name.isNotBlank()) {
-                    Actor(
-                        name = actor.name,
-                        image = actor.profile_path?.let { "$tmdbImageUrl/w185$it" }
-                    )
-                } else {
-                    null
-                }
-            }
-
-            val youtubeTrailer = getHighQualityTrailer(details?.videos?.results)
-
-            TMDBInfo(
-                id = result.id,
-                title = if (isTv) result.name else result.title,
-                year = if (isTv) result.first_air_date?.substring(0, 4)?.toIntOrNull()
-                      else result.release_date?.substring(0, 4)?.toIntOrNull(),
-                posterUrl = result.poster_path?.let { "$tmdbImageUrl/w500$it" },
-                backdropUrl = details?.backdrop_path?.let { "$tmdbImageUrl/original$it" },
-                overview = details?.overview,
-                genres = details?.genres?.map { it.name },
-                actors = allActors?.take(15),
-                youtubeTrailer = youtubeTrailer,
-                duration = if (!isTv) details?.runtime else null,
-                seasonsEpisodes = seasonEpisodes
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun getHighQualityTrailer(videos: List<TMDBVideo>?): String? {
-        return videos?.mapNotNull { video ->
-            when {
-                video.site == "YouTube" && video.type == "Trailer" ->
-                    Triple(video.key, 10, "YouTube Trailer")
-                video.site == "YouTube" && video.type == "Teaser" ->
-                    Triple(video.key, 8, "YouTube Teaser")
-                video.site == "YouTube" && (video.type == "Clip" || video.type == "Featurette") ->
-                    Triple(video.key, 5, "YouTube Clip")
-                else -> null
-            }
-        }
-        ?.sortedByDescending { it.second }
-        ?.firstOrNull()
-        ?.let { (key, _, _) ->
-            // SOLUÇÃO: Usar URL completa do YouTube como o TMDB faz
-            // Esta URL permite que o YouTube otimize a qualidade automaticamente
-            "https://www.youtube.com/watch?v=$key"
-        }
-    }
-
-    private suspend fun getTMDBDetailsWithFullCredits(id: Int, isTv: Boolean): TMDBDetailsResponse? {
-        println("=== DETALHES TMDB ===")
-    println("ID: $id, Tipo: ${if (isTv) "TV" else "Movie"}")
-   println("Chave TMDB disponível: ${tmdbApiKey.isNotEmpty()}")
-        return try {
-            val type = if (isTv) "tv" else "movie"
-            val url = "$tmdbBaseUrl/$type/$id?" +
-                     "api_key=$tmdbApiKey" +
-                     "&language=pt-BR" +
-                     "&append_to_response=credits,videos,recommendations"
-
-            val response = app.get(url, timeout = 10_000)
-            response.parsedSafe<TMDBDetailsResponse>()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private suspend fun getTMDBAllSeasons(seriesId: Int): Map<Int, List<TMDBEpisode>> {
-        return try {
-            val seriesDetailsUrl = "$tmdbBaseUrl/tv/$seriesId?" +
-                                  "api_key=$tmdbApiKey" +
-                                  "&language=pt-BR"
-
-            val seriesResponse = app.get(seriesDetailsUrl, timeout = 10_000)
-            val seriesDetails = seriesResponse.parsedSafe<TMDBTVDetailsResponse>()
-
-            val seasonsEpisodes = mutableMapOf<Int, List<TMDBEpisode>>()
-
-            seriesDetails?.seasons?.forEach { season ->
-                if (season.season_number > 0) {
-                    val seasonNumber = season.season_number
-                    val seasonData = getTMDBSeasonDetails(seriesId, seasonNumber)
-                    seasonData?.episodes?.let { episodes ->
-                        seasonsEpisodes[seasonNumber] = episodes
-                    }
-                }
-            }
-
-            seasonsEpisodes
-        } catch (e: Exception) {
-            emptyMap()
-        }
-    }
-
-    private suspend fun getTMDBSeasonDetails(seriesId: Int, seasonNumber: Int): TMDBSeasonResponse? {
-        return try {
-            val url = "$tmdbBaseUrl/tv/$seriesId/season/$seasonNumber?" +
-                     "api_key=$tmdbApiKey" +
-                     "&language=pt-BR"
-
-            app.get(url, timeout = 10_000).parsedSafe<TMDBSeasonResponse>()
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -460,6 +407,7 @@ private fun forceConfigUsage() {
 
                     episodes.add(episode)
                 } catch (e: Exception) {
+                    // Ignora episódio com erro
                 }
             }
         } else {
@@ -486,6 +434,7 @@ private fun forceConfigUsage() {
 
                     episodes.add(episode)
                 } catch (e: Exception) {
+                    // Ignora episódio com erro
                 }
             }
         }
@@ -522,7 +471,7 @@ private fun forceConfigUsage() {
             this.season = seasonNumber
             this.episode = episodeNumber
 
-            this.posterUrl = tmdbEpisode?.still_path?.let { "$tmdbImageUrl/w300$it" } ?:
+            this.posterUrl = tmdbEpisode?.still_path?.let { "$TMDB_IMAGE_URL/w300$it" } ?:
                             element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
 
             val descriptionBuilder = StringBuilder()
@@ -537,6 +486,7 @@ private fun forceConfigUsage() {
                     val date = dateFormatter.parse(airDate)
                     this.date = date.time
                 } catch (e: Exception) {
+                    // Ignora erro de parse
                 }
             }
 
@@ -624,6 +574,7 @@ private fun forceConfigUsage() {
         return videoLink?.attr("href")
     }
 
+    // ============ CLASSES DE DADOS DO TMDB ============
     private data class TMDBInfo(
         val id: Int,
         val title: String?,
@@ -647,19 +598,6 @@ private fun forceConfigUsage() {
         @JsonProperty("air_date") val air_date: String?
     )
 
-    private data class TMDBSearchResponse(
-        @JsonProperty("results") val results: List<TMDBResult>
-    )
-
-    private data class TMDBResult(
-        @JsonProperty("id") val id: Int,
-        @JsonProperty("title") val title: String? = null,
-        @JsonProperty("name") val name: String? = null,
-        @JsonProperty("release_date") val release_date: String? = null,
-        @JsonProperty("first_air_date") val first_air_date: String? = null,
-        @JsonProperty("poster_path") val poster_path: String?
-    )
-
     private data class TMDBDetailsResponse(
         @JsonProperty("overview") val overview: String?,
         @JsonProperty("backdrop_path") val backdrop_path: String?,
@@ -667,7 +605,7 @@ private fun forceConfigUsage() {
         @JsonProperty("genres") val genres: List<TMDBGenre>?,
         @JsonProperty("credits") val credits: TMDBCredits?,
         @JsonProperty("videos") val videos: TMDBVideos?
-    )
+    ) : TMDBTVDetailsResponse(emptyList())
 
     private data class TMDBTVDetailsResponse(
         @JsonProperty("seasons") val seasons: List<TMDBSeasonInfo>
