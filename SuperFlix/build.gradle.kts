@@ -9,6 +9,8 @@ cloudstream {
     iconUrl = "https://superflix21.lol/assets/logo.png"
 }
 
+android.buildFeatures.buildConfig = true
+
 android {
     defaultConfig {
         buildConfigField(
