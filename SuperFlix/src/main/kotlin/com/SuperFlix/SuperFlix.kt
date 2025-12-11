@@ -19,16 +19,29 @@ class SuperFlix : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
     override val usesWebView = true
 
-    internal val tmdbApiKey = Config.TMDB_API_KEY
-    internal val tmdbBaseUrl = Config.TMDB_BASE_URL
-    internal val tmdbImageUrl = Config.TMDB_IMAGE_URL
-   
-init {
-        Config.logConfig()  
-        println("🔥 SuperFlix inicializado")
-        println("🔑 TMDB Key: ${tmdbApiKey.take(4)}...")
+
+private fun forceConfigUsage() {
+        // Estas chamadas FORÇAM o Kotlin a incluir o Config no APK
+        val dummy1 = Config.TMDB_API_KEY.length
+        val dummy2 = Config.TMDB_BASE_URL
+        val dummy3 = Config.TMDB_IMAGE_URL
+        val dummy4 = Config.DEBUG_MODE
+        val dummy5 = Config.REQUEST_TIMEOUT
+        
+        // Log para debug (opcional)
+        if (Config.DEBUG_MODE) {
+            println("🔧 Config forçado no APK")
+            println("📏 TMDB Key size: $dummy1")
+        }
+    }
+    
+    init {
+        // Chama a função no init
+        forceConfigUsage()
+        Config.logConfig()
     }
 
+    
  override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
         "$mainUrl/filmes" to "Últimos Filmes",
