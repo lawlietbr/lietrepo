@@ -5,14 +5,14 @@ on:
     branches:
       - main
   workflow_dispatch:
-  
+
 jobs:
-   build:
-      runs-on: ubuntu-latest
-      permissions:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
       contents: write
 
-   steps:
+    steps:
       # 1. CHECKOUT
       - uses: actions/checkout@v4
         with:
@@ -84,15 +84,16 @@ jobs:
           echo "=== FIM ==="
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-     - name: Debug - Verificar estrutura do projeto
-         run: |
-                 echo "=== ESTRUTURA DO PROJETO ==="
-                 find . -name "*.kt" | grep -i superflix || true
-                 find . -name "build.gradle*" | xargs grep -l "TMDB" || true
-            .    echo "=== FIM ==="
 
+      # 6. DEBUG: Verificar estrutura do projeto
+      - name: Debug - Verificar estrutura do projeto
+        run: |
+          echo "=== ESTRUTURA DO PROJETO ==="
+          find . -name "*.kt" | grep -i superflix || true
+          find . -name "build.gradle*" | xargs grep -l "TMDB" || true
+          echo "=== FIM ==="
 
-    # 6. BUILD com debug aprimorado
+      # 7. BUILD com debug aprimorado
       - name: Build with Gradle
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
@@ -137,20 +138,21 @@ jobs:
           ./gradlew clean assemble --refresh-dependencies --info --stacktrace
           
           echo "=== BUILD COMPLETO ==="
+
+      # 8. DEBUG: Verificar APK gerado
       - name: Debug - Verificar APK gerado
-       run: |
-             echo "=== VERIFICANDO APK ==="
-             find . -name "*.apk" | while read apk; do
-             echo "APK: $apk"
-      # Tentar extrair e verificar strings
-      if command -v strings &> /dev/null; then
-        echo "Strings contendo TMDB no APK:"
-        strings "$apk" | grep -i "tmdb\|api_key" | head -10 || true
-      fi
-    done
+        run: |
+          echo "=== VERIFICANDO APK ==="
+          find . -name "*.apk" | while read apk; do
+            echo "APK: $apk"
+            # Tentar extrair e verificar strings
+            if command -v strings &> /dev/null; then
+              echo "Strings contendo TMDB no APK:"
+              strings "$apk" | grep -i "tmdb\|api_key" | head -10 || true
+            fi
+          done
 
-
-      # 7. DEBUG: Verificar BuildConfig gerado
+      # 9. DEBUG: Verificar BuildConfig gerado
       - name: Debug - Verificar BuildConfig gerado
         run: |
           echo "=== DEBUG BUILDCONFIG ==="
@@ -196,5 +198,3 @@ jobs:
           done
           
           echo "=== FIM DEBUG ==="
-
-      
