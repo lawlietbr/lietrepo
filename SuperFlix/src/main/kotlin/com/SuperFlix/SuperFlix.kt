@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.app
 import org.jsoup.nodes.Element
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.text.SimpleDateFormat
+import com.lietrepo.superflix.BuildConfig
 
 class SuperFlix : MainAPI() {
     override var mainUrl = "https://superflix21.lol"
