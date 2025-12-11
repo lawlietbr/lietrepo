@@ -1,38 +1,20 @@
 android {
-    compileSdk = 34 
-    buildFeatures.buildConfig = true
+    compileSdk = 34
     namespace = "com.lietrepo.superflix"
 
     defaultConfig {
         minSdk = 21
-
-        // USE GRADLE PROPERTY (não env var)
-        val tmdbApiKey = project.findProperty("TMDB_API_KEY") as? String ?: ""
-        
-        println("=== DEBUG BUILD ===")
-        println("TMDB_API_KEY do Gradle: ${tmdbApiKey.length} chars")
-        
-        if (tmdbApiKey.isNotEmpty()) {
-            println("✅ Chave encontrada: ${tmdbApiKey.take(4)}...")
-        } else {
-            println("❌ CHAVE VAZIA NO GRADLE!")
-            // Fallback para env var
-            val envKey = System.getenv("TMDB_API_KEY") ?: ""
-            println("Fallback env var: ${envKey.length} chars")
+    }
+    
+    // 🔥 ADICIONE ISSO:
+    buildTypes {
+        getByName("debug") {
+            isMinifyEnabled = false  // Desativa minificação
+            isShrinkResources = false // Desativa remoção de recursos
         }
-
-        buildConfigField(
-            "String",
-            "TMDB_API_KEY", 
-            "\"$tmdbApiKey\""
-        )
-        
-        // ADICIONE ISSO para debug extra
-        buildConfigField(
-            "Boolean",
-            "DEBUG_MODE",
-            "true"
-        )
+        getByName("release") {
+            isMinifyEnabled = false  // TAMBÉM para release
+            isShrinkResources = false
+        }
     }
 }
-
