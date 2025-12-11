@@ -24,7 +24,7 @@ class SuperFlix : MainAPI() {
     internal val tmdbImageUrl = Config.TMDB_IMG_URL
    
 init {
-        Config.logConfig()  // ← Mostra configurações
+        Config.logConfig()  
         println("🔥 SuperFlix inicializado")
         println("🔑 TMDB Key: ${tmdbApiKey.take(4)}...")
     }
