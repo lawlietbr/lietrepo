@@ -8,7 +8,8 @@ import com.lagradost.cloudstream3.app
 import org.jsoup.nodes.Element
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.text.SimpleDateFormat
-import org.json.JSONObject  
+import org.json.JSONObject
+import java.util.Date
 
 class SuperFlix : MainAPI() {
     override var mainUrl = "https://superflix21.lol"
@@ -27,20 +28,20 @@ class SuperFlix : MainAPI() {
     private suspend fun testProxyConnection() {
         println("🧪 === TESTE DE CONEXÃO PROXY ===")
         println("🔗 URL do proxy: $TMDB_PROXY_URL")
-        
+
         try {
             // Teste 1: Health check
             println("\n📡 Teste 1: Health check")
             val healthResponse = app.get("$TMDB_PROXY_URL/health", timeout = 5_000)
             println("   Status: ${healthResponse.code}")
             println("   Body: ${healthResponse.text.take(100)}")
-            
+
             // Teste 2: Busca simples
             println("\n🔍 Teste 2: Busca 'avatar'")
             val searchResponse = app.get("$TMDB_PROXY_URL/search?query=avatar&type=movie", timeout = 5_000)
             println("   Status: ${searchResponse.code}")
             println("   Tamanho resposta: ${searchResponse.text.length} chars")
-            
+
             if (searchResponse.code == 200) {
                 try {
                     val json = JSONObject(searchResponse.text)
@@ -50,9 +51,9 @@ class SuperFlix : MainAPI() {
                     println("   ❌ JSON inválido")
                 }
             }
-            
+
             println("\n🎯 Proxy ${if (healthResponse.code == 200 && searchResponse.code == 200) "✅ FUNCIONANDO" else "❌ COM PROBLEMAS"}")
-            
+
         } catch (e: Exception) {
             println("💥 ERRO no teste do proxy: ${e.message}")
         }
@@ -66,9 +67,9 @@ class SuperFlix : MainAPI() {
         println("📅 Year: $year")
         println("🎬 Type: ${if (isTv) "TV" else "Movie"}")
         println("🌐 Proxy: $TMDB_PROXY_URL")
-        
+
         val type = if (isTv) "tv" else "movie"
-        
+
         return try {
             // Constrói URL para o proxy
             val urlBuilder = StringBuilder("$TMDB_PROXY_URL/search")
@@ -76,43 +77,43 @@ class SuperFlix : MainAPI() {
                 .append("&type=$type")
                 .append("&language=pt-BR")
                 .append("&page=1")
-            
+
             year?.let {
                 if (it > 1900 && it < 2100) {
                     urlBuilder.append("&year=$it")
                 }
             }
-            
+
             val finalUrl = urlBuilder.toString()
             println("🔗 URL completa: $finalUrl")
-            
+
             // Faz requisição para SEU proxy
             println("📡 Fazendo requisição...")
             val response = app.get(finalUrl, timeout = 15_000)
             println("📊 Status code: ${response.code}")
             println("📦 Tamanho resposta: ${response.text.length} chars")
-            
+
             if (response.code == 200) {
                 println("✅ Resposta OK, processando JSON...")
-                
+
                 try {
                     val json = JSONObject(response.text)
                     val results = json.optJSONArray("results")
                     val totalResults = json.optInt("total_results", 0)
-                    
+
                     println("📊 Total de resultados na TMDB: $totalResults")
                     println("📋 Resultados no array: ${results?.length() ?: 0}")
-                    
+
                     if (results != null && results.length() > 0) {
                         val firstItem = results.getJSONObject(0)
                         val itemId = firstItem.getInt("id")
                         val title = if (isTv) firstItem.optString("name", "") else firstItem.optString("title", "")
-                        
+
                         println("🎉 TMDB ENCONTRADO!")
                         println("   ID: $itemId")
                         println("   Título: $title")
                         println("   Poster: ${firstItem.optString("poster_path", "N/A")}")
-                        
+
                         // Tenta buscar detalhes (opcional)
                         println("\n🔍 Buscando detalhes adicionais...")
                         val details = try {
@@ -121,13 +122,13 @@ class SuperFlix : MainAPI() {
                             println("⚠️ Detalhes falharam: ${e.message}")
                             null
                         }
-                        
+
                         if (details != null) {
                             println("✅ Detalhes obtidos")
                             println("   Gêneros: ${details.genres?.size ?: 0}")
                             println("   Atores: ${details.credits?.cast?.size ?: 0}")
                         }
-                        
+
                         val tmdbInfo = TMDBInfo(
                             id = itemId,
                             title = title,
@@ -157,13 +158,13 @@ class SuperFlix : MainAPI() {
                             duration = if (!isTv) details?.runtime else null,
                             seasonsEpisodes = emptyMap() // Simplificado por enquanto
                         )
-                        
+
                         println("\n✅ === TMDB SUCESSO ===")
                         println("   Título: ${tmdbInfo.title}")
                         println("   Ano: ${tmdbInfo.year}")
                         println("   Poster URL: ${tmdbInfo.posterUrl?.take(50)}...")
                         println("🔍 === FIM BUSCA TMDB ===")
-                        
+
                         return tmdbInfo
                     } else {
                         println("⚠️ Nenhum resultado encontrado na TMDB para: '$query'")
@@ -179,7 +180,7 @@ class SuperFlix : MainAPI() {
                 println("📄 Resposta (primeiros 300 chars):")
                 println(response.text.take(300))
             }
-            
+
             println("🔍 === TMDB FALHOU ===")
             null
         } catch (e: Exception) {
@@ -188,17 +189,17 @@ class SuperFlix : MainAPI() {
             null
         }
     }
-    
+
     // ============ FUNÇÕES AUXILIARES DO PROXY ============
     private suspend fun getTMDBDetailsViaProxy(id: Int, isTv: Boolean): TMDBDetailsResponse? {
         println("   🔎 Buscando detalhes para ID: $id (${if (isTv) "TV" else "Movie"})")
-        
+
         val type = if (isTv) "tv" else "movie"
         val url = "$TMDB_PROXY_URL/$type/$id"
-        
+
         return try {
             val response = app.get(url, timeout = 10_000)
-            
+
             if (response.code == 200) {
                 response.parsedSafe<TMDBDetailsResponse>()
             } else {
@@ -222,7 +223,7 @@ class SuperFlix : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = request.data + if (page > 1) "?page=$page" else ""
         println("🏠 MainPage: $url")
-        
+
         val document = app.get(url).document
 
         val home = document.select("a.card, div.recs-grid a.rec-card").mapNotNull { element ->
@@ -273,7 +274,7 @@ class SuperFlix : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         println("🔎 Search: '$query'")
-        
+
         val searchUrl = "$mainUrl/buscar?q=${java.net.URLEncoder.encode(query, "UTF-8")}"
         val document = app.get(searchUrl).document
 
@@ -311,7 +312,7 @@ class SuperFlix : MainAPI() {
                 null
             }
         }
-        
+
         println("🔎 Search encontrou ${results.size} resultados")
         return results
     }
@@ -319,10 +320,10 @@ class SuperFlix : MainAPI() {
     override suspend fun load(url: String): LoadResponse? {
         println("\n🎬 === LOAD INICIADO ===")
         println("🔗 URL: $url")
-        
+
         // Testa o proxy primeiro (temporário)
         testProxyConnection()
-        
+
         val document = app.get(url).document
 
         val titleElement = document.selectFirst("h1, .title")
@@ -368,7 +369,7 @@ class SuperFlix : MainAPI() {
         siteRecommendations: List<SearchResponse>
     ): LoadResponse {
         println("🎨 Criando LoadResponse com dados TMDB")
-        
+
         return if (isAnime || isSerie) {
             println("📺 É série/anime, extraindo episódios...")
             val episodes = extractEpisodesWithTMDBInfo(
@@ -378,7 +379,7 @@ class SuperFlix : MainAPI() {
                 isAnime = isAnime,
                 isSerie = isSerie
             )
-            
+
             println("📺 Episódios encontrados: ${episodes.size}")
 
             val type = if (isAnime) TvType.Anime else TvType.TvSeries
@@ -572,6 +573,8 @@ class SuperFlix : MainAPI() {
         isSerie: Boolean = false
     ): Episode {
         return newEpisode(fixUrl(dataUrl)) {
+            val descriptionBuilder = StringBuilder()
+
             this.name = tmdbEpisode?.name ?:
                        element.selectFirst(".ep-title, .title, .episode-title, h3, h4")?.text()?.trim() ?:
                        "Episódio $episodeNumber"
@@ -582,23 +585,18 @@ class SuperFlix : MainAPI() {
             this.posterUrl = tmdbEpisode?.still_path?.let { "$TMDB_IMAGE_URL/w300$it" } ?:
                             element.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
 
-            val descriptionBuilder = StringBuilder()
-
             tmdbEpisode?.overview?.let { overview ->
                 descriptionBuilder.append(overview)
             }
 
             tmdbEpisode?.air_date?.let { airDate ->
-  
-                  try {
-    val dateFormatter = SimpleDateFormat("dd-MM-yyyy")
-    val airDateParsed = dateFormatter.parse(airDate)
-    if (airDateParsed != null) {
-        this.date = airDateParsed.time
-    }
-} catch (e: Exception) {
-    // Ignora erro de parse
-}
+                try {
+                    val dateFormatter = SimpleDateFormat("dd-MM-yyyy")
+                    val airDateParsed = dateFormatter.parse(airDate)
+                    if (airDateParsed != null) {
+                        this.date = airDateParsed.time
+                    }
+                } catch (e: Exception) {
                     // Ignora erro de parse
                 }
             }
@@ -635,7 +633,7 @@ class SuperFlix : MainAPI() {
         isSerie: Boolean
     ): LoadResponse {
         println("🏠 Criando resposta com dados do site")
-        
+
         val ogImage = document.selectFirst("meta[property='og:image']")?.attr("content")
         val poster = ogImage?.let { fixUrl(it) }
         println("🖼️ Poster do site: ${poster?.take(50)}...")
@@ -666,7 +664,7 @@ class SuperFlix : MainAPI() {
         } else {
             val playerUrl = findPlayerUrl(document)
             println("🎬 Player URL: $playerUrl")
-            
+
             newMovieLoadResponse(title, url, TvType.Movie, playerUrl ?: url) {
                 this.posterUrl = poster
                 this.year = year
@@ -694,21 +692,21 @@ class SuperFlix : MainAPI() {
             println("🎯 Player encontrado no botão: $url")
             return url
         }
-        
+
         val iframe = document.selectFirst("iframe[src*='fembed'], iframe[src*='filemoon'], iframe[src*='player'], iframe[src*='embed']")
         if (iframe != null) {
             val url = iframe.attr("src")
             println("🎯 Player encontrado no iframe: $url")
             return url
         }
-        
+
         val videoLink = document.selectFirst("a[href*='.m3u8'], a[href*='.mp4'], a[href*='watch']")
         if (videoLink != null) {
             val url = videoLink.attr("href")
             println("🎯 Player encontrado no link: $url")
             return url
         }
-        
+
         println("⚠️ Nenhum player encontrado")
         return null
     }
