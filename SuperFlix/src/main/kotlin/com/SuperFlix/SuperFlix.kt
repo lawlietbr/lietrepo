@@ -25,74 +25,128 @@ class SuperFlix : MainAPI() {
 
     // ============ FUNÇÃO DE BUSCA NO TMDB ============
     private suspend fun searchOnTMDB(query: String, year: Int?, isTv: Boolean): TMDBInfo? {
-        val type = if (isTv) "tv" else "movie"
+    val type = if (isTv) "tv" else "movie"
+    
+    try {
+        // PASSO 1: BUSCA BÁSICA
+        val searchUrl = "$TMDB_PROXY_URL/search/$type?" +
+                       "query=${URLEncoder.encode(query, "UTF-8")}&" +
+                       "language=pt-BR"
         
-        return try {
-            // Busca no TMDB via proxy
-            val searchUrl = "$TMDB_PROXY_URL/search/$type?query=${java.net.URLEncoder.encode(query, "UTF-8")}&language=pt-BR"
-            val response = app.get(searchUrl, timeout = 15_000)
-            
-            if (response.code != 200) return null
-            
-            val json = JSONObject(response.text)
-            val results = json.getJSONArray("results")
-            
-            if (results.length() == 0) return null
-            
-            val firstItem = results.getJSONObject(0)
-            val itemId = firstItem.getInt("id")
-            
-            // Busca detalhes completos (incluindo créditos e vídeos)
-            val details = getTMDBDetails(itemId, isTv)
-            
-            // Para séries, busca temporadas e episódios
-            val seasonsEpisodes = if (isTv) {
-                getTMDBSeasonsWithEpisodes(itemId)
-            } else {
-                emptyMap()
-            }
-            
-            // Extrai atores
-            val actors = details?.credits?.cast?.take(15)?.mapNotNull { actor ->
-                if (actor.name.isNotBlank()) {
-                    Actor(
-                        name = actor.name,
-                        image = actor.profile_path?.takeIf { it.isNotEmpty() && it != "null" }
-                            ?.let { "$TMDB_IMAGE_URL/w185$it" }
-                    )
-                } else null
-            }
-            
-            // Extrai trailer do YouTube
-            val trailer = details?.videos?.results?.firstOrNull { 
-                it.site == "YouTube" && it.type == "Trailer" 
-            }?.key?.let { "https://www.youtube.com/watch?v=$it" }
-            
-            TMDBInfo(
-                id = itemId,
-                title = if (isTv) firstItem.optString("name", "") else firstItem.optString("title", ""),
-                year = if (isTv) {
-                    firstItem.optString("first_air_date", "").take(4).toIntOrNull()
-                } else {
-                    firstItem.optString("release_date", "").take(4).toIntOrNull()
-                },
-                posterUrl = firstItem.optString("poster_path", "").takeIf { it.isNotEmpty() && it != "null" }
-                    ?.let { "$TMDB_IMAGE_URL/w500$it" },
-                backdropUrl = details?.backdrop_path?.takeIf { it.isNotEmpty() && it != "null" }
-                    ?.let { "$TMDB_IMAGE_URL/original$it" },
-                overview = details?.overview ?: firstItem.optString("overview", ""),
-                genres = details?.genres?.map { it.name },
-                actors = actors,
-                youtubeTrailer = trailer,
-                duration = if (!isTv) details?.runtime else null,
-                seasonsEpisodes = seasonsEpisodes
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+        val searchResponse = app.get(searchUrl, timeout = 10_000)
+        
+        if (searchResponse.status != 200) return null
+        
+        val searchJson = JSONObject(searchResponse.text)
+        val results = searchJson.getJSONArray("results")
+        if (results.length() == 0) return null
+        
+        val firstItem = results.getJSONObject(0)
+        val itemId = firstItem.getInt("id")
+        
+        // PASSO 2: DETALHES COMPLETOS (AGORA SIM!)
+        val detailsUrl = "$TMDB_PROXY_URL/$type/$itemId?" +
+                        "language=pt-BR&" +
+                        "append_to_response=credits,videos" + // ← MÁGICA AQUI!
+                        (if (isTv) ",recommendations" else "")
+        
+        val detailsResponse = app.get(detailsUrl, timeout = 10_000)
+        
+        if (detailsResponse.status != 200) {
+            // Fallback: usa dados da busca se detalhes falharem
+            return createBasicTMDBInfo(firstItem, isTv)
         }
+        
+        val detailsJson = JSONObject(detailsResponse.text)
+        return parseFullTMDBInfo(detailsJson, isTv)
+        
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
     }
+}
 
+// NOVA FUNÇÃO PARA PROCESSAR DETALHES COMPLETOS
+private fun parseFullTMDBInfo(json: JSONObject, isTv: Boolean): TMDBInfo {
+    // Extrai atores dos créditos
+    val actors = mutableListOf<Actor>()
+    try {
+        val credits = json.getJSONObject("credits")
+        val cast = credits.getJSONArray("cast")
+        
+        for (i in 0 until min(cast.length(), 15)) { // Pega até 15 atores
+            val actor = cast.getJSONObject(i)
+            val name = actor.getString("name")
+            val profilePath = actor.optString("profile_path", "")
+            
+            if (name.isNotBlank()) {
+                actors.add(
+                    Actor(
+                        name = name,
+                        image = if (profilePath.isNotBlank()) 
+                                "$TMDB_IMAGE_URL/w185$profilePath" 
+                              else null
+                    )
+                )
+            }
+        }
+    } catch (e: Exception) {
+        // Se não conseguir créditos, continua sem atores
+    }
+    
+    // Extrai trailer do YouTube
+    var youtubeTrailer: String? = null
+    try {
+        val videos = json.getJSONObject("videos")
+        val results = videos.getJSONArray("results")
+        
+        for (i in 0 until results.length()) {
+            val video = results.getJSONObject(i)
+            if (video.getString("site") == "YouTube" && 
+                video.getString("type") == "Trailer") {
+                youtubeTrailer = "https://www.youtube.com/watch?v=${video.getString("key")}"
+                break
+            }
+        }
+    } catch (e: Exception) {
+        // Se não conseguir vídeos, sem trailer
+    }
+    
+    // Extrai gêneros
+    val genres = mutableListOf<String>()
+    try {
+        val genresArray = json.getJSONArray("genres")
+        for (i in 0 until genresArray.length()) {
+            val genre = genresArray.getJSONObject(i)
+            genres.add(genre.getString("name"))
+        }
+    } catch (e: Exception) {
+        // Se não conseguir gêneros, lista vazia
+    }
+    
+    return TMDBInfo(
+        id = json.getInt("id"),
+        title = if (isTv) json.optString("name", "") 
+                else json.optString("title", ""),
+        year = if (isTv) json.optString("first_air_date", "").take(4).toIntOrNull()
+                else json.optString("release_date", "").take(4).toIntOrNull(),
+        posterUrl = json.optString("poster_path", "").takeIf { it.isNotEmpty() }
+                    ?.let { "$TMDB_IMAGE_URL/w500$it" },
+        backdropUrl = json.optString("backdrop_path", "").takeIf { it.isNotEmpty() }
+                      ?.let { "$TMDB_IMAGE_URL/original$it" },
+        overview = json.optString("overview", ""),
+        genres = if (genres.isNotEmpty()) genres else null,
+        actors = if (actors.isNotEmpty()) actors else null,
+        youtubeTrailer = youtubeTrailer,
+        duration = if (!isTv) json.optInt("runtime", 0) else null,
+        seasonsEpisodes = if (isTv) {
+            // Para séries, ainda precisa buscar temporadas/episódios separadamente
+            getSeasonsFromTMDB(json.getInt("id"))
+        } else {
+            emptyMap()
+        }
+    )
+}
     // ============ FUNÇÃO PARA BUSCAR DETALHES ============
     private suspend fun getTMDBDetails(id: Int, isTv: Boolean): TMDBDetailsResponse? {
         return try {
