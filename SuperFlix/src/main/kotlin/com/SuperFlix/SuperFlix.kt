@@ -4,6 +4,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.metaproviders.TmdbProvider
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Element
+import com.lagradost.cloudstream3.metaproviders.TmdbLink
 
 class SuperFlix : TmdbProvider() {
     override var mainUrl = "https://superflix21.lol"
