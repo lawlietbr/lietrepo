@@ -637,14 +637,14 @@ class SuperFlix : MainAPI() {
         return when {
             overview != null && runtime != null && runtime > 0 -> {
                 // Adiciona "-min" no final da sinopse
-                "$overview\n\nDuração: $runtime min"
+                "$overview\n\n-$runtime min"
             }
             overview != null -> {
-                // Mantém apenas a sinopse se não houver duração
+                
                 overview
             }
             runtime != null && runtime > 0 -> {
-                // Se não houver sinopse mas houver duração
+                
                 "Duração: $runtime min"
             }
             else -> null
