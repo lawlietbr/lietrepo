@@ -632,11 +632,11 @@ class SuperFlix : MainAPI() {
         return episodes
     }
 
-    // NOVA FUNÇÃO: Adiciona "-min" no final da sinopse com a duração
+    
     private fun buildDescriptionWithDuration(overview: String?, runtime: Int?): String? {
         return when {
             overview != null && runtime != null && runtime > 0 -> {
-                // Adiciona "-min" no final da sinopse
+                
                 "$overview\n\n-$runtime min"
             }
             overview != null -> {
@@ -645,7 +645,7 @@ class SuperFlix : MainAPI() {
             }
             runtime != null && runtime > 0 -> {
                 
-                "Duração: $runtime min"
+                "-$runtime min"
             }
             else -> null
         }
