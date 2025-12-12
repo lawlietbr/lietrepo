@@ -8,10 +8,13 @@ import org.jsoup.nodes.Element
 class SuperFlix : TmdbProvider() {
     override var mainUrl = "https://superflix21.lol"
     override var name = "SuperFlix"
-    override val lang = "pt-br"
+    override var lang = "pt-br"  // Corrigido: var ao invés de val
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
     
+    // ============ CONFIGURAÇÕES TMDB ============
     override val useMetaLoadResponse = true
+    
+    // ============ PÁGINA PRINCIPAL ============
     override val mainPage = mainPageOf(
         "$mainUrl/lancamentos" to "Lançamentos",
         "$mainUrl/filmes" to "Últimos Filmes",
@@ -31,8 +34,8 @@ class SuperFlix : TmdbProvider() {
     }
     
     private fun Element.toSearchResult(): SearchResponse? {
-        val title = attr("title") ?: selectFirst("img")?.attr("alt") ?: return null
-        val href = attr("href") ?: return null
+        val title = this.attr("title") ?: this.selectFirst("img")?.attr("alt") ?: return null
+        val href = this.attr("href") ?: return null
         
         // Detecta o tipo
         val isAnime = href.contains("/anime/") || title.contains("(Anime)", ignoreCase = true)
@@ -40,13 +43,13 @@ class SuperFlix : TmdbProvider() {
         
         return when {
             isAnime -> newAnimeSearchResponse(title, fixUrl(href), TvType.Anime) {
-                this.posterUrl = selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+                this.posterUrl = this@toSearchResult.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
             }
             isSerie -> newTvSeriesSearchResponse(title, fixUrl(href), TvType.TvSeries) {
-                this.posterUrl = selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+                this.posterUrl = this@toSearchResult.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
             }
             else -> newMovieSearchResponse(title, fixUrl(href), TvType.Movie) {
-                this.posterUrl = selectFirst("img")?.attr("src")?.let { fixUrl(it) }
+                this.posterUrl = this@toSearchResult.selectFirst("img")?.attr("src")?.let { fixUrl(it) }
             }
         }
     }
@@ -77,7 +80,7 @@ class SuperFlix : TmdbProvider() {
         }
     }
     
-    
+    // ============ CARREGAR CONTEÚDO ============
     override suspend fun load(url: String): LoadResponse? {
         val document = app.get(url).document
         
@@ -89,18 +92,28 @@ class SuperFlix : TmdbProvider() {
                      document.selectFirst(".episode-list, .season-list") != null
         
         return if (isAnime || isSerie) {
-            val episodes = extractEpisodesFromSite(document, url, isAnime, isSeries)  
+            // SUA FUNÇÃO DE EXTRAIR EPISÓDIOS DO SITE (mantida!)
+            val episodes = extractEpisodesFromSite(document, url, isAnime, isSerie)
+            
             val type = if (isAnime) TvType.Anime else TvType.TvSeries
             
             newTvSeriesLoadResponse(title, url, type, episodes) {
+                // TMDB preenche automaticamente:
+                // - poster, backdrop, sinopse, gêneros
+                // - atores, trailer, ano, classificação
+                // - NÃO preenche episódios (isso vem do seu site)
+                
+                // Adiciona recomendações do site
                 this.recommendations = extractRecommendationsFromSite(document)
                 
+                // Adiciona tags/sinopse do site como fallback
                 val siteDescription = document.selectFirst("meta[name='description']")?.attr("content")
                 if (siteDescription?.isNotEmpty() == true && this.plot.isNullOrEmpty()) {
                     this.plot = siteDescription
                 }
             }
         } else {
+            // FILME
             val playerUrl = findPlayerUrl(document)
             
             newMovieLoadResponse(title, url, TvType.Movie, playerUrl ?: url) {
@@ -110,16 +123,21 @@ class SuperFlix : TmdbProvider() {
         }
     }
     
+    // ============ MANTENHA SUAS FUNÇÕES DE EXTRAÇÃO! ============
+    
     private suspend fun extractEpisodesFromSite(
         document: org.jsoup.nodes.Document,
         url: String,
         isAnime: Boolean,
         isSerie: Boolean = false
     ): List<Episode> {
+        println("🔍 [DEBUG] Extraindo episódios da URL: $url")
         val episodes = mutableListOf<Episode>()
         
         val episodeElements = document.select("button.bd-play[data-url], a.episode-card, .episode-item")
-       episodeElements.forEachIndexed { index, elements->
+        println("🔍 [DEBUG] Elementos de episódio encontrados: ${episodeElements.size}")
+        
+        episodeElements.forEachIndexed { index, element ->
             try {
                 val dataUrl = element.attr("data-url") ?: element.attr("href") ?: ""
                 if (dataUrl.isBlank()) return@forEachIndexed
@@ -131,6 +149,8 @@ class SuperFlix : TmdbProvider() {
                     this.name = "Episódio $epNumber"
                     this.season = seasonNumber
                     this.episode = epNumber
+                    
+                    // Pode adicionar sinopse do site se quiser
                     element.selectFirst(".ep-desc, .description")?.text()?.trim()?.let { desc ->
                         if (desc.isNotBlank()) {
                             this.description = desc
@@ -140,9 +160,11 @@ class SuperFlix : TmdbProvider() {
                 
                 episodes.add(episode)
             } catch (e: Exception) {
+                println("❌ [DEBUG] Erro episódio $index: ${e.message}")
+            }
+        }
         
-                 }
-             }
+        println("✅ [DEBUG] Total de episódios extraídos: ${episodes.size}")
         return episodes
     }
     
@@ -169,6 +191,7 @@ class SuperFlix : TmdbProvider() {
                document.selectFirst("iframe[src*='fembed']")?.attr("src")
     }
     
+    // ============ EXTRATOR DE LINKS (mantém igual) ============
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
