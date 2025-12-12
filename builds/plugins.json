@@ -1,20 +1,23 @@
 [
     {
         "iconUrl": "https://superflix21.lol/assets/logo.png",
+        "jarFileSize": 166160,
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbt/lietrepo",
-        "fileSize": 50264,
+        "fileSize": 38780,
         "status": 1,
         "language": "pt-br",
         "authors": [
-            "lietbr"
+            "lawlietbr"
         ],
         "tvTypes": [
-            "Movie",
-            "TvSeries"
+            "Movies",
+            "Series",
+            "Animes"
         ],
         "version": 1,
         "internalName": "SuperFlix",
+        "jarUrl": "https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/SuperFlix.jar",
         "description": "SuperFlix - Filmes e S\u00e9ries em Portugu\u00eas",
         "url": "https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/SuperFlix.cs3",
         "name": "SuperFlix"
