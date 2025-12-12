@@ -18,7 +18,7 @@ class SuperFlix : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Anime)
     override val usesWebView = true
 
-    // ============ MODIFICAÇÃO AQUI: TROQUEI PARA PROXY ============
+    // ============ CONFIGURAÇÃO DO PROXY ============
     private val TMDB_PROXY_URL = "https://lawliet.euluan1912.workers.dev"
     private val tmdbImageUrl = "https://image.tmdb.org/t/p"
 
@@ -152,26 +152,24 @@ class SuperFlix : MainAPI() {
             val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
             val yearParam = year?.let { "&year=$it" } ?: ""
 
-            // ============ MODIFICAÇÃO AQUI: URL DO PROXY ============
+            // ============ URL CORRIGIDA PARA O PROXY ============
             val searchUrl = "$TMDB_PROXY_URL/search/$type?" +
-                           "language=pt-BR" +  // Proxy já tem a chave embutida
-                           "&query=$encodedQuery" +
+                           "query=$encodedQuery" +
                            yearParam +
                            "&page=1"
 
             val response = app.get(searchUrl, timeout = 10_000)
+            
+            // O proxy retorna a resposta completa do TMDB, então precisamos analisar corretamente
             val searchResult = response.parsedSafe<TMDBSearchResponse>()
-
+            
+            // Verifica se temos resultados
             val result = searchResult?.results?.firstOrNull() ?: return null
-
+            
+            // Busca detalhes completos (com créditos, vídeos, etc)
             val details = getTMDBDetailsWithFullCredits(result.id, isTv)
-            val seasonEpisodes = if (isTv && details != null) {
-                getTMDBAllSeasons(result.id)
-            } else {
-                emptyMap()
-            }
-
-            val allActors = details?.credits?.cast?.mapNotNull { actor ->
+            
+            val allActors = details?.credits?.cast?.take(15)?.mapNotNull { actor ->
                 if (actor.name.isNotBlank()) {
                     Actor(
                         name = actor.name,
@@ -183,22 +181,33 @@ class SuperFlix : MainAPI() {
             }
 
             val youtubeTrailer = getHighQualityTrailer(details?.videos?.results)
+            
+            // Para séries, busca informações de temporadas
+            val seasonsEpisodes = if (isTv && details != null) {
+                getTMDBAllSeasons(result.id)
+            } else {
+                emptyMap()
+            }
 
             TMDBInfo(
                 id = result.id,
                 title = if (isTv) result.name else result.title,
-                year = if (isTv) result.first_air_date?.substring(0, 4)?.toIntOrNull()
-                      else result.release_date?.substring(0, 4)?.toIntOrNull(),
+                year = if (isTv) {
+                    result.first_air_date?.substring(0, 4)?.toIntOrNull()
+                } else {
+                    result.release_date?.substring(0, 4)?.toIntOrNull()
+                },
                 posterUrl = result.poster_path?.let { "$tmdbImageUrl/w500$it" },
                 backdropUrl = details?.backdrop_path?.let { "$tmdbImageUrl/original$it" },
                 overview = details?.overview,
                 genres = details?.genres?.map { it.name },
-                actors = allActors?.take(15),
+                actors = allActors,
                 youtubeTrailer = youtubeTrailer,
                 duration = if (!isTv) details?.runtime else null,
-                seasonsEpisodes = seasonEpisodes
+                seasonsEpisodes = seasonsEpisodes
             )
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }
@@ -206,12 +215,16 @@ class SuperFlix : MainAPI() {
     private fun getHighQualityTrailer(videos: List<TMDBVideo>?): String? {
         return videos?.mapNotNull { video ->
             when {
+                video.site == "YouTube" && video.type == "Trailer" && video.official == true ->
+                    Triple(video.key, 10, "YouTube Trailer Oficial")
                 video.site == "YouTube" && video.type == "Trailer" ->
-                    Triple(video.key, 10, "YouTube Trailer")
+                    Triple(video.key, 9, "YouTube Trailer")
+                video.site == "YouTube" && video.type == "Teaser" && video.official == true ->
+                    Triple(video.key, 8, "YouTube Teaser Oficial")
                 video.site == "YouTube" && video.type == "Teaser" ->
-                    Triple(video.key, 8, "YouTube Teaser")
-                video.site == "YouTube" && (video.type == "Clip" || video.type == "Featurette") ->
-                    Triple(video.key, 5, "YouTube Clip")
+                    Triple(video.key, 7, "YouTube Teaser")
+                video.site == "YouTube" && (video.type == "Clip" || video.type == "Featurette") && video.official == true ->
+                    Triple(video.key, 6, "YouTube Clip Oficial")
                 else -> null
             }
         }
@@ -225,24 +238,22 @@ class SuperFlix : MainAPI() {
     private suspend fun getTMDBDetailsWithFullCredits(id: Int, isTv: Boolean): TMDBDetailsResponse? {
         return try {
             val type = if (isTv) "tv" else "movie"
-            // ============ MODIFICAÇÃO AQUI: URL DO PROXY ============
+            // ============ URL CORRIGIDA PARA O PROXY ============
             val url = "$TMDB_PROXY_URL/$type/$id?" +
-                     "language=pt-BR" +
-                     "&append_to_response=credits,videos,recommendations"
-
+                     "append_to_response=credits,videos"
+                     
             val response = app.get(url, timeout = 10_000)
             response.parsedSafe<TMDBDetailsResponse>()
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }
 
     private suspend fun getTMDBAllSeasons(seriesId: Int): Map<Int, List<TMDBEpisode>> {
         return try {
-            // ============ MODIFICAÇÃO AQUI: URL DO PROXY ============
-            val seriesDetailsUrl = "$TMDB_PROXY_URL/tv/$seriesId?" +
-                                  "language=pt-BR"
-
+            // ============ URL CORRIGIDA PARA O PROXY ============
+            val seriesDetailsUrl = "$TMDB_PROXY_URL/tv/$seriesId"
             val seriesResponse = app.get(seriesDetailsUrl, timeout = 10_000)
             val seriesDetails = seriesResponse.parsedSafe<TMDBTVDetailsResponse>()
 
@@ -260,18 +271,18 @@ class SuperFlix : MainAPI() {
 
             seasonsEpisodes
         } catch (e: Exception) {
+            e.printStackTrace()
             emptyMap()
         }
     }
 
     private suspend fun getTMDBSeasonDetails(seriesId: Int, seasonNumber: Int): TMDBSeasonResponse? {
         return try {
-            // ============ MODIFICAÇÃO AQUI: URL DO PROXY ============
-            val url = "$TMDB_PROXY_URL/tv/$seriesId/season/$seasonNumber?" +
-                     "language=pt-BR"
-
+            // ============ URL CORRIGIDA PARA O PROXY ============
+            val url = "$TMDB_PROXY_URL/tv/$seriesId/season/$seasonNumber"
             app.get(url, timeout = 10_000).parsedSafe<TMDBSeasonResponse>()
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }
@@ -420,6 +431,7 @@ class SuperFlix : MainAPI() {
 
                     episodes.add(episode)
                 } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         } else {
@@ -446,6 +458,7 @@ class SuperFlix : MainAPI() {
 
                     episodes.add(episode)
                 } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -506,9 +519,9 @@ class SuperFlix : MainAPI() {
             }
 
             if (duration > 0 && descriptionBuilder.isNotEmpty()) {
-                descriptionBuilder.append("\n\n- ${duration}min")
+                descriptionBuilder.append("\n\nDuração: ${duration}min")
             } else if (duration > 0) {
-                descriptionBuilder.append("- ${duration}min")
+                descriptionBuilder.append("Duração: ${duration}min")
             }
 
             if ((isSerie || isAnime) && descriptionBuilder.isEmpty()) {
@@ -584,6 +597,9 @@ class SuperFlix : MainAPI() {
         return videoLink?.attr("href")
     }
 
+    // ============ CLASSES DE DADOS CORRIGIDAS ============
+    // Baseado no JSON que você forneceu
+    
     private data class TMDBInfo(
         val id: Int,
         val title: String?,
@@ -596,15 +612,6 @@ class SuperFlix : MainAPI() {
         val youtubeTrailer: String?,
         val duration: Int?,
         val seasonsEpisodes: Map<Int, List<TMDBEpisode>> = emptyMap()
-    )
-
-    private data class TMDBEpisode(
-        @JsonProperty("episode_number") val episode_number: Int,
-        @JsonProperty("name") val name: String,
-        @JsonProperty("overview") val overview: String?,
-        @JsonProperty("still_path") val still_path: String?,
-        @JsonProperty("runtime") val runtime: Int?,
-        @JsonProperty("air_date") val air_date: String?
     )
 
     private data class TMDBSearchResponse(
@@ -643,6 +650,15 @@ class SuperFlix : MainAPI() {
         @JsonProperty("air_date") val air_date: String?
     )
 
+    private data class TMDBEpisode(
+        @JsonProperty("episode_number") val episode_number: Int,
+        @JsonProperty("name") val name: String,
+        @JsonProperty("overview") val overview: String?,
+        @JsonProperty("still_path") val still_path: String?,
+        @JsonProperty("runtime") val runtime: Int?,
+        @JsonProperty("air_date") val air_date: String?
+    )
+
     private data class TMDBGenre(
         @JsonProperty("name") val name: String
     )
@@ -664,6 +680,7 @@ class SuperFlix : MainAPI() {
     private data class TMDBVideo(
         @JsonProperty("key") val key: String,
         @JsonProperty("site") val site: String,
-        @JsonProperty("type") val type: String
+        @JsonProperty("type") val type: String,
+        @JsonProperty("official") val official: Boolean? = false
     )
 }
