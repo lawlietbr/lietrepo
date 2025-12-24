@@ -63,6 +63,7 @@ jobs:
                   # 6. CRIA o manifesto principal (repo.json)
                   echo "{
                     \"name\": \"lawlietrepo\",
+                    \"iconUrl\": \"https://github.com/lawlietbr.png\",
                     \"description\": \"Repositório Brasileiro para o Cloudstream\",
                     \"manifestVersion\": 1,
                     \"pluginLists\": $PLUGINS_LIST
