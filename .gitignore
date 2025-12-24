@@ -70,9 +70,6 @@ Desktop.ini
 *.ap_
 *.aab
 
-# Output do CloudStream
-*.cs3
-**/*.cs3
 
 # ============================================
 # TEMPORÁRIOS / BACKUPS
