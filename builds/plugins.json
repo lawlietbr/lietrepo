@@ -1,10 +1,31 @@
 [
     {
-        "iconUrl": "https://superflix21.lol/assets/logo.png",
-        "jarFileSize": 182052,
+        "iconUrl": "https://animefire.io/img/icons/favicon-192x192.png",
+        "jarFileSize": 116639,
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbt/lietrepo",
-        "fileSize": 41667,
+        "fileSize": 30846,
+        "status": 1,
+        "language": "pt-br",
+        "authors": [
+            "lawlietbr"
+        ],
+        "tvTypes": [
+            "Animes"
+        ],
+        "version": 1,
+        "internalName": "AnimeFire",
+        "jarUrl": "https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/AnimeFire.jar",
+        "description": "Site brasileiro de animes em portugu\u00eas",
+        "url": "https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/AnimeFire.cs3",
+        "name": "AnimeFire"
+    },
+    {
+        "iconUrl": "https://icons.duckduckgo.com/ip2/superflix22.lol.ico",
+        "jarFileSize": 171289,
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/lawlietbt/lietrepo",
+        "fileSize": 38763,
         "status": 1,
         "language": "pt-br",
         "authors": [
