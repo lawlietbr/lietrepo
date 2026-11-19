@@ -40,11 +40,11 @@
         "name": "AniTube"
     },
     {
-        "iconUrl": "https://cineagora.net/templates/cineagora/images/touch-icon-180x180.png",
-        "fileHash": "sha256-5d9fa07bb0f9462aa4f9e6de0d168e2e3ecafa32ab0baa0fe75b30767e2942e3",
+        "iconUrl": "https://cineagora.club/templates/cineagora/images/touch-icon-180x180.png",
+        "fileHash": "sha256-2356ad835090815d310db95fba5364b57997dc1a9de446be06cf2cf14727af53",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 59717,
+        "fileSize": 59713,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -55,7 +55,7 @@
             "Series",
             "Animes"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "CineAgora",
         "description": "Assista filmes e s\u00e9ries online gr\u00e1tis em HD no CineAgora",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/CineAgora.cs3",
@@ -182,26 +182,5 @@
         "description": "Rei dos Embeds - O melhor diret\u00f3rio de canais ao vivo. Mais de 150 canais dispon\u00edveis.",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/ReiDosEmbeds.cs3",
         "name": "ReiDosEmbeds"
-    },
-    {
-        "iconUrl": "https://openclipart.org/image/2400px/svg_to_png/193323/-S.png",
-        "fileHash": "sha256-dc6dc8812a5ef8b24bd260bc2a0cf7c8567bc58cabd7b8029b684ffcb60523f6",
-        "apiVersion": 1,
-        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 49234,
-        "status": 1,
-        "language": "pt-br",
-        "authors": [
-            "lawlietbr"
-        ],
-        "tvTypes": [
-            "Movies",
-            "Series"
-        ],
-        "version": 1,
-        "internalName": "StreamFlix",
-        "description": "StreamFlix - Filmes e S\u00e9ries Online em Portugu\u00eas | Lan\u00e7amentos e Cl\u00e1ssicos",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/StreamFlix.cs3",
-        "name": "StreamFlix"
     }
 ]
