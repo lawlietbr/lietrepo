@@ -9,7 +9,7 @@ import com.lagradost.cloudstream3.utils.newExtractorLink
 
 object CineAgoraExtractor {
     private const val BASE_PLAYER = "https://watch.brstream.cc"
-    private const val REFERER_CINEAGORA = "https://cineagora.net/"
+    private const val REFERER_CINEAGORA = "https://cineagora.club/"
     private const val PRIMARY_SOURCE = "CineAgora"
 
     suspend fun extractVideoLinks(
@@ -24,7 +24,7 @@ object CineAgoraExtractor {
             url.contains("watch.brstream.cc/watch/") && !url.contains("?v=") -> {
                 extractHlsFromWatchPage(url, name, callback)
             }
-            url.contains("cineagora.net") -> {
+            url.contains("cineagora.club") || url.contains("cineagora.net") -> {
                 extractFromCineAgoraPage(url, name, callback)
             }
             else -> {

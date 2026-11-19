@@ -215,23 +215,30 @@ class AnimeFire : MainAPI() {
                     val s = streams.optJSONObject(i) ?: continue
                     val streamUrl = s.optString("url")
                     if (streamUrl.isBlank()) continue
-                    if (s.optBoolean("is_mtl") || s.optBoolean("is_offline")) continue
+                    if (s.optBoolean("is_offline")) continue
 
                     val isDub = s.optString("audio", "legendado").contains("dublado", true)
-                    val label = if (isDub) "Dublado" else "Legendado"
-                    val qualities = s.optString("qualities", "")
-                    val height = Regex("\"(\\d{3,4})p\"").findAll(qualities)
-                        .map { it.groupValues[1].toInt() }.maxOrNull()
+                    val label = (if (isDub) "Dublado" else "Legendado") + if (s.optBoolean("is_mtl")) " [MTL]" else ""
+                    val qArr = s.optJSONArray("qualities")
+                    val height = (0 until (qArr?.length() ?: 0))
+                        .mapNotNull { i -> qArr?.optString(i)?.filter { it.isDigit() }?.toIntOrNull() }
+                        .maxOrNull()
 
+                    // O playlist HLS vem camuflado com extensao .jpg (o CDN responde
+                    // content-type application/vnd.apple.mpegurl) — sempre M3U8.
                     callback.invoke(
                         newExtractorLink(
                             source = "AnimeFire",
                             name = "AnimeFire $label" + (height?.let { " (${it}p)" } ?: ""),
                             url = streamUrl,
-                            type = if (streamUrl.contains(".m3u8")) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                            type = ExtractorLinkType.M3U8
                         ) {
                             this.quality = height ?: 0
                             this.referer = "https://animefire.one/"
+                            this.headers = mapOf(
+                                "User-Agent" to "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
+                                "Referer" to "https://animefire.one/"
+                            )
                         }
                     )
                     found = true

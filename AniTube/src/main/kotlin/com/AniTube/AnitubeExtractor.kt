@@ -52,13 +52,13 @@ object AniTubeVideoExtractor {
                     iframeSrc.contains("videohls.php") || iframeSrc.contains(".m3u8") -> {
                         extractHlsVideo(iframeSrc, tabName, url, name, callback)
                     }
-                    iframeSrc.contains("anitube.news/") && !iframeSrc.contains("videohls.php") -> {
+                    iframeSrc.contains("anitube.") && !iframeSrc.contains("videohls.php") -> {
                         extractFromProxy(iframeSrc, tabName, url, name, callback)
                     }
                     iframeSrc.contains("blogger.com") -> {
                         extractBloggerDirect(iframeSrc, tabName, url, name, callback)
                     }
-                    else -> false
+                    else -> extractFromProxy(iframeSrc, tabName, url, name, callback)
                 }
                 
                 if (success) anySuccess = true
@@ -152,18 +152,34 @@ object AniTubeVideoExtractor {
         val fullProxyUrl = if (proxyUrl.startsWith("http")) {
             proxyUrl
         } else {
-            "https://www.anitube.news$proxyUrl"
+            "https://www.anitube.zip$proxyUrl"
         }
-        
-        val proxyResponse = app.get(
-            fullProxyUrl,
-            headers = mapOf(
-                "User-Agent" to getRandomUserAgent(),
-                "Referer" to referer,
-                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language" to "pt-BR"
-            )
+
+        // O wrapper do anivideo exige headers completos de navegador
+        // (Sec-Fetch-*); sem eles o WAF responde 403. Seguimos o redirect
+        // manualmente repassando o Set-Cookie da primeira resposta.
+        val browserHeaders = mapOf(
+            "User-Agent" to getRandomUserAgent(),
+            "Referer" to referer,
+            "Accept" to "*/*",
+            "Accept-Language" to "pt-BR",
+            "Upgrade-Insecure-Requests" to "1",
+            "Sec-Fetch-Dest" to "iframe",
+            "Sec-Fetch-Mode" to "navigate",
+            "Sec-Fetch-Site" to "cross-site"
         )
+        var proxyResponse = app.get(fullProxyUrl, headers = browserHeaders, allowRedirects = false)
+        val setCookie = proxyResponse.headers["set-cookie"]
+        if (proxyResponse.code in 300..399) {
+            val location = proxyResponse.headers["location"] ?: return false
+            val resolved = if (location.startsWith("http")) location else "https://www.anitube.zip" + location
+            val followHeaders = if (setCookie != null) {
+                browserHeaders + mapOf("Cookie" to setCookie.substringBefore(";"))
+            } else {
+                browserHeaders
+            }
+            proxyResponse = app.get(resolved, headers = followHeaders)
+        }
         
         val proxyHtml = proxyResponse.text
         val proxyDoc = Jsoup.parse(proxyHtml)
