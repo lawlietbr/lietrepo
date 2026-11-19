@@ -367,7 +367,27 @@ class ReiDosEmbeds : MainAPI() {
 
                     for (j in 0 until sourcesArray.length()) {
                         val source = sourcesArray.getJSONObject(j)
-                        val streamUrl = source.getString("src").replace("\\/", "/")
+                        var streamUrl = source.optString("src", "").replace("\\/", "/")
+                        if (streamUrl.isBlank()) {
+                            val refPath = source.optString("ref", "").replace("\\/", "/")
+                            if (refPath.isNotBlank()) {
+                                val refUrl = if (refPath.startsWith("http")) refPath else "$origin$refPath"
+                                try {
+                                    val refResp = app.post(
+                                        refUrl,
+                                        headers = mapOf(
+                                            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                            "Accept" to "application/json, text/plain, */*",
+                                            "Referer" to currentUrl,
+                                            "Origin" to origin
+                                        )
+                                    ).text
+                                    streamUrl = JSONObject(refResp).optString("src", "").replace("\\/", "/")
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        if (streamUrl.isBlank()) continue
+
                         val label = source.optString("label", "Source ${j + 1}")
                         val finalName = if (sourceName.isNotEmpty()) "$sourceName - $label" else label
                         

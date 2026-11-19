@@ -1,4 +1,4 @@
-version = 3
+version = 4
 
 cloudstream {
     description = "Embed TV - O melhor site de TV online. "
@@ -6,5 +6,5 @@ cloudstream {
     authors = listOf("lawlietbr")
     status = 1
     tvTypes = listOf("Live")
-    iconUrl = "https://embedtv.best/assets/icon.png"
+    iconUrl = "https://embedtv.cc/assets/icon.png"
 }

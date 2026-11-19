@@ -1,4 +1,4 @@
-version = 1
+version = 2
 
 cloudstream {
     description = "Rei dos Embeds - O melhor diretório de canais ao vivo. Mais de 150 canais disponíveis."

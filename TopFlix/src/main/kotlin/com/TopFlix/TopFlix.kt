@@ -287,7 +287,7 @@ class TopFlix : MainAPI() {
                 this.duration = duration
                 rating?.let { this.score = Score.from10(it) }
                 this.recommendations = recommendations.takeIf { it.isNotEmpty() }
-                if (actors.isNotEmpty()) addActors(actors.map { it to null })
+                if (actors.isNotEmpty()) addActors(actors.map { it to (null as String?) })
             }
         } else {
             newMovieLoadResponse(title, url, TvType.Movie, "$itemId|movie|1|1") {
@@ -299,7 +299,7 @@ class TopFlix : MainAPI() {
                 this.duration = duration
                 rating?.let { this.score = Score.from10(it) }
                 this.recommendations = recommendations.takeIf { it.isNotEmpty() }
-                if (actors.isNotEmpty()) addActors(actors.map { it to null })
+                if (actors.isNotEmpty()) addActors(actors.map { it to (null as String?) })
             }
         }
     }
