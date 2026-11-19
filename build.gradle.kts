@@ -10,7 +10,14 @@ buildscript {
     dependencies {
         classpath("com.android.tools.build:gradle:8.7.3")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0")
-        classpath("com.github.recloudstream:gradle:master-32895aedb6-1")
+        // Plugin gradle do Cloudstream vendorizado: os snapshots do JitPack
+        // (master-SNAPSHOT) sao evictaveis/inconsistentes e quebram o build.
+        // Jar = build master-32895aedb6 do recloudstream/gradle; deps abaixo
+        // sao as declaradas no POM desse build (todas no Maven Central).
+        classpath(files("libs/recloudstream-gradle.jar"))
+        classpath("org.ow2.asm:asm:9.9.1")
+        classpath("org.ow2.asm:asm-tree:9.9.1")
+        classpath("com.github.vidstige:jadb:v1.2.1")
     }
 }
 
