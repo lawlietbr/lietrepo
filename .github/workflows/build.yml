@@ -22,18 +22,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Desativamos o cache do gradle do actions temporariamente para não puxar o erro corrompido
-          cache: ''
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
-      - name: Limpar Cache do Gradle e Metadados Corrompidos
-        run: |
-          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.github.recloudstream
-          rm -rf ~/.gradle/caches/transforms-*
-          rm -rf ~/.gradle/caches/journal-*
-          ./gradlew clean --refresh-dependencies
 
       - name: Configurar BuildConfig com Secrets
         run: |
