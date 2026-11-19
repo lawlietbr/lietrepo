@@ -147,9 +147,15 @@ class EmbedTv : MainAPI() {
             }
         }
 
-        val channelArticle = matchingArticles.last()
-        val eventArticle = matchingArticles.first()
-        val chosen = if (isFromEventos) eventArticle else channelArticle
+        val chosen = (if (isFromEventos) matchingArticles.firstOrNull() else matchingArticles.lastOrNull())
+            ?: return newMovieLoadResponse(
+                "Canal $channelId",
+                cleanUrl,
+                TvType.Live,
+                cleanUrl
+            ) {
+                this.posterUrl = "$mainSite/assets/icon.png"
+            }
 
         val title = extractArticleTitle(chosen, isFromEventos) ?: "Canal $channelId"
         val image = extractArticleImage(chosen)
