@@ -262,7 +262,7 @@ class TopFlix : MainAPI() {
             val episodePairs = playerJson?.let { parseSeasonEpisodePairs(it) }.orEmpty()
             val episodes = if (episodePairs.isNotEmpty()) {
                 episodePairs.map { (seasonNum, epNum) ->
-                    newEpisode("$itemId|series|$seasonNum|$epNum") {
+                    newEpisode("$mainUrl/play/$itemId/$seasonNum/$epNum") {
                         this.name = "Episódio $epNum"
                         this.season = seasonNum
                         this.episode = epNum
@@ -270,7 +270,7 @@ class TopFlix : MainAPI() {
                 }
             } else {
                 listOf(
-                    newEpisode("$itemId|series|1|1") {
+                    newEpisode("$mainUrl/play/$itemId/1/1") {
                         this.name = "Episódio 1"
                         this.season = 1
                         this.episode = 1
@@ -290,7 +290,7 @@ class TopFlix : MainAPI() {
                 if (actors.isNotEmpty()) addActors(actors.map { it to (null as String?) })
             }
         } else {
-            newMovieLoadResponse(title, url, TvType.Movie, "$itemId|movie|1|1") {
+            newMovieLoadResponse(title, url, TvType.Movie, "$mainUrl/play/$itemId/1/1") {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = plot
@@ -322,12 +322,21 @@ class TopFlix : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val parts = data.split("|")
-        if (parts.size < 4) return false
-
-        val itemId = parts[0]
-        val season = parts[2].toIntOrNull() ?: 1
-        val episode = parts[3].toIntOrNull() ?: 1
+        val playMatch = Regex("""/play/(\d+)/(\d+)/(\d+)""").find(data)
+        val itemId: String
+        val season: Int
+        val episode: Int
+        if (playMatch != null) {
+            itemId = playMatch.groupValues[1]
+            season = playMatch.groupValues[2].toIntOrNull() ?: 1
+            episode = playMatch.groupValues[3].toIntOrNull() ?: 1
+        } else {
+            val parts = data.split("|")
+            if (parts.size < 4) return false
+            itemId = parts[0].substringAfterLast("/")
+            season = parts[2].toIntOrNull() ?: 1
+            episode = parts[3].toIntOrNull() ?: 1
+        }
 
         val cdnUrl = getCdnUrl()
         val firstJson = fetchPlayerJson(cdnUrl, itemId, version = 0, season = season, episode = episode) ?: return false
