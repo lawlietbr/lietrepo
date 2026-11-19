@@ -1,6 +1,6 @@
 import java.util.Properties
 
-version = 2
+version = 3
 
 plugins {
     kotlin("android")

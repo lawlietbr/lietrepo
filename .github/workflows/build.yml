@@ -80,7 +80,6 @@ jobs:
           }" > builds/repo.json
 
           find . -type f -name "*.cs3" -exec cp {} builds/ \; || true
-          find . -type f -name "*.jar" -exec cp {} builds/ \; || true
 
       - name: Commit Providers to main branch
         uses: stefanzweifel/git-auto-commit-action@v5

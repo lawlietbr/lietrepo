@@ -1,607 +1,200 @@
 package com.AnimeFire
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.utils.*
-import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.app
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import org.jsoup.nodes.Element
+import com.lagradost.cloudstream3.utils.*
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.URLEncoder
 
 class AnimeFire : MainAPI() {
-    override var mainUrl = "https://animefire.io"
+    override var mainUrl = "https://animefire.one"
     override var name = "AnimeFire"
     override val hasMainPage = true
     override var lang = "pt-br"
     override val hasDownloadSupport = true
-    override val supportedTypes = setOf(TvType.Anime, TvType.Movie, TvType.OVA)
-    override val usesWebView = true
+    override val supportedTypes = setOf(TvType.Anime, TvType.Movie)
+    override val usesWebView = false
 
     companion object {
-        private const val SEARCH_PATH = "/pesquisar"
-        
-        private val loadingMutex = Mutex()
-        
-        private val FIXED_CATEGORIES = listOf(
-            "/em-lancamento" to "Lançamentos",
-            "/top-animes" to "Top Animes",
-            "/lista-de-animes-dublados" to "Animes Dublados",
-            "/lista-de-animes-legendados" to "Animes Legendados"
+        private const val API = "https://api.animefire.one"
+
+        private val API_HEADERS = mapOf(
+            "Accept" to "application/json",
+            "Referer" to "https://animefire.one/",
+            "User-Agent" to "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36"
         )
-        
-        private val ALL_RANDOM_CATEGORIES = listOf(
-            "/animes-atualizados" to "Atualizados",
-            "/lista-de-filmes-legendados" to "Filmes Legendados",
-            "/lista-de-filmes-dublados" to "Filmes Dublados",
-            "/genero/acao" to "Ação",
-            "/genero/aventura" to "Aventura",
-            "/genero/comedia" to "Comédia",
-            "/genero/drama" to "Drama",
-            "/genero/fantasia" to "Fantasia",
-            "/genero/romance" to "Romance",
-            "/genero/shounen" to "Shounen",
-            "/genero/seinen" to "Seinen",
-            "/genero/esporte" to "Esporte",
-            "/genero/misterio" to "Mistério",
-            "/genero/artes-marciais" to "Artes Marciais",
-            "/genero/demonios" to "Demônios",
-            "/genero/ecchi" to "Ecchi",
-            "/genero/ficcao-cientifica" to "Ficção Científica",
-            "/genero/harem" to "Harém",
-            "/genero/horror" to "Horror",
-            "/genero/magia" to "Magia",
-            "/genero/mecha" to "Mecha",
-            "/genero/militar" to "Militar",
-            "/genero/psicologico" to "Psicológico",
-            "/genero/slice-of-life" to "Slice of Life",
-            "/genero/sobrenatural" to "Sobrenatural",
-            "/genero/superpoder" to "Superpoder",
-            "/genero/vampiros" to "Vampiros",
-            "/genero/vida-escolar" to "Vida Escolar"
-        )
-        
-        private var cachedRandomTabs: List<Pair<String, String>>? = null
-        private var cacheTime: Long = 0
-        private const val CACHE_DURATION = 300000L
-        
-        fun getCombinedTabs(): List<Pair<String, String>> {
-            val currentTime = System.currentTimeMillis()
-            
-            if (cachedRandomTabs != null && (currentTime - cacheTime) < CACHE_DURATION) {
-                return FIXED_CATEGORIES + cachedRandomTabs!!
-            }
-            
-            val randomTabs = ALL_RANDOM_CATEGORIES
-                .shuffled()
-                .take(8)
-                .distinctBy { it.first }
-            
-            cachedRandomTabs = randomTabs
-            cacheTime = currentTime
-            
-            return FIXED_CATEGORIES + randomTabs
-        }
+
+        private fun genre(name: String): String =
+            "https://api.animefire.one/animes?genre=${URLEncoder.encode(name, "UTF-8")}"
     }
 
     override val mainPage = mainPageOf(
-        *getCombinedTabs().map { (path, name) -> 
-            "$mainUrl$path" to name 
-        }.toTypedArray()
+        "$API/home" to "Destaques",
+        "$API/animes/lancamentos" to "Lançamentos",
+        "$API/animes" to "Animes",
+        "$API/animes/filmes" to "Filmes",
+        "$API/animes/em-breve" to "Em breve",
+        genre("Ação") to "Ação",
+        genre("Comédia") to "Comédia",
+        genre("Terror") to "Terror",
+        genre("Romance") to "Romance",
+        genre("Isekai") to "Isekai",
+        genre("Aventura") to "Aventura"
     )
 
-    private fun extractPoster(element: Element): String? {
-        return try {
-            val metaImage = element.selectFirst("meta[property='og:image']")?.attr("content")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { fixUrl(it) }
-            if (metaImage != null) return metaImage
-            
-            val dataSrc = element.selectFirst("img[data-src]")?.attr("data-src")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { fixUrl(it) }
-            if (dataSrc != null) return dataSrc
-            
-            val srcImage = element.selectFirst("img[src]")?.attr("src")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { fixUrl(it) }
-            if (srcImage != null) return srcImage
-            
-            val style = element.attr("style")
-            if (style.contains("background-image")) {
-                val bgRegex = Regex("""url\(['"]?([^'"()]+)['"]?\)""")
-                val match = bgRegex.find(style)
-                match?.groupValues?.get(1)?.let { bgUrl ->
-                    return fixUrl(bgUrl)
-                }
-            }
-            
-            null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun extractDetailPoster(document: org.jsoup.nodes.Document): String? {
-        return try {
-            val metaImage = document.selectFirst("meta[property='og:image']")?.attr("content")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { fixUrl(it) }
-            if (metaImage != null) return metaImage
-            
-            val posterSelectors = listOf(
-                ".sub_animepage_img img",
-                ".poster img", 
-                ".anime-poster img",
-                ".cover img",
-                "img.poster"
-            )
-            
-            for (selector in posterSelectors) {
-                document.selectFirst(selector)?.let { img ->
-                    val src = when {
-                        img.hasAttr("src") -> img.attr("src")
-                        img.hasAttr("data-src") -> img.attr("data-src")
-                        else -> null
-                    }
-                    
-                    src?.takeIf { it.isNotBlank() }?.let { 
-                        return fixUrl(it)
-                    }
-                }
-            }
-            
-            document.selectFirst("img[src*='/animes/'], img[src*='/img/']")
-                ?.attr("src")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { return fixUrl(it) }
-            
-            null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun Element.toSearchResponse(): AnimeSearchResponse? {
-        val href = attr("href") ?: return null
-        if (href.isBlank() || (!href.contains("/animes/") && !href.contains("/filmes/"))) return null
-        
-        val titleElement = selectFirst("h3.animeTitle, .animeTitle, h3, .card-title") ?: return null
-        val rawTitle = titleElement.text().trim()
-        
-        val titleAttr = attr("title")?.trim() ?: ""
-        val combinedTitle = if (titleAttr.isNotBlank() && titleAttr.length > 3) titleAttr else rawTitle
-        
-        if (combinedTitle.isBlank()) return null
-        
-        val scoreResult = extractScoreAdvanced(this)
-        val scoreText = scoreResult.first
-        val score = when {
-            scoreText == null || scoreText == "N/A" -> null
-            else -> scoreText.toFloatOrNull()?.let { Score.from10(it) }
-        }
-        
-        val hasExplicitDub = combinedTitle.contains("dublado", ignoreCase = true)
-        val hasExplicitLeg = combinedTitle.contains("legendado", ignoreCase = true)
-        
-        val finalHasDub: Boolean
-        val finalHasLeg: Boolean
-        
-        when {
-            hasExplicitDub && !hasExplicitLeg -> {
-                finalHasDub = true
-                finalHasLeg = false
-            }
-            !hasExplicitDub && hasExplicitLeg -> {
-                finalHasDub = false
-                finalHasLeg = true
-            }
-            hasExplicitDub && hasExplicitLeg -> {
-                finalHasDub = true
-                finalHasLeg = true
-            }
-            else -> {
-                finalHasDub = false
-                finalHasLeg = true
-            }
-        }
-        
-        val cleanName = extractAnimeName(combinedTitle, selectFirst(".numEp")?.text())
-        val isMovie = href.contains("/filmes/") || combinedTitle.contains("filme", ignoreCase = true)
-        val sitePoster = extractPoster(this)
-
-        return newAnimeSearchResponse(cleanName, fixUrl(href)) {
-            this.posterUrl = sitePoster
-            this.type = if (isMovie) TvType.Movie else TvType.Anime
-            this.score = score
-            
-            if (finalHasDub || finalHasLeg) {
-                addDubStatus(dubExist = finalHasDub, subExist = finalHasLeg)
-            }
-        }
-    }
-
-    private fun extractScoreAdvanced(element: Element): Pair<String?, String?> {
-        val selectors = listOf(
-            ".horaUltimosEps" to "Seletor padrão .horaUltimosEps",
-            ".rating" to "Seletor .rating",
-            ".score" to "Seletor .score",
-            ".numEp + span" to "Próximo ao .numEp",
-            ".episodes + span" to "Próximo a .episodes",
-            ".card-footer span" to "No rodapé do card",
-            "span:contains(★)" to "Span com estrela",
-            "span:contains(/10)" to "Span com /10",
-            "[class*='rating']" to "Classe contém 'rating'",
-            "[class*='score']" to "Classe contém 'score'",
-            "small" to "Tag small",
-            "b" to "Tag bold"
-        )
-
-        for ((selector, _) in selectors) {
-            val found = element.selectFirst(selector)?.text()?.trim()
-            if (!found.isNullOrBlank() && isScoreLike(found)) {
-                return found to selector
-            }
-        }
-
-        element.parent()?.let { parent ->
-            for ((selector, _) in selectors) {
-                val found = parent.selectFirst(selector)?.text()?.trim()
-                if (!found.isNullOrBlank() && isScoreLike(found)) {
-                    return found to "parent.$selector"
-                }
-            }
-        }
-
-        val html = element.outerHtml()
-        val scoreRegexes = listOf(
-            Regex("""(\d+\.\d+|\d+)\s*(?:★|/10|pontos)"""),
-            Regex("""class="[^"]*(?:rating|score)[^"]*">([^<]+)""")
-        )
-
-        for (regex in scoreRegexes) {
-            val match = regex.find(html)
-            if (match != null) {
-                val found = match.groupValues[1].trim()
-                if (isScoreLike(found)) {
-                    return found to "regex"
-                }
-            }
-        }
-
-        return null to null
-    }
-
-    private fun isScoreLike(text: String): Boolean {
+    private fun titleOf(o: JSONObject): String {
+        val t = o.optJSONObject("titles")
         return when {
-            text.equals("N/A", ignoreCase = true) -> true
-            text.matches(Regex("""^\d+(\.\d+)?$""")) -> true
-            text.matches(Regex("""^\d+(\.\d+)?/10$""")) -> true
-            text.contains("★") -> true
-            text.contains("pontos", ignoreCase = true) -> true
-            else -> false
+            t != null && t.has("BR") -> t.getString("BR")
+            t != null && t.has("US") -> t.getString("US")
+            t != null -> t.optString("JP", "Sem título")
+            else -> o.optString("title", "Sem título")
         }
     }
 
-    private fun extractAnimeName(fullText: String, episodeText: String?): String {
-        var cleanName = fullText
-        
-        episodeText?.let {
-            cleanName = cleanName.replace(it, "").trim()
+    private fun yearOf(o: JSONObject): Int? =
+        o.optString("published_at", "").take(4).toIntOrNull()
+
+    private fun cardToResponse(o: JSONObject): SearchResponse? {
+        val id = o.optString("id")
+        if (id.isBlank()) return null
+        val title = titleOf(o)
+        val poster = o.optString("poster_src").ifBlank { null }
+        val isDub = o.optString("audio", "").contains("Dublado", true)
+        return newAnimeSearchResponse(title, "$mainUrl/anime/$id") {
+            this.posterUrl = poster
+            this.year = yearOf(o)
+            this.type = TvType.Anime
+            addDubStatus(dubExist = isDub, subExist = true)
         }
-        
-        val patterns = listOf(
-            Regex("(?i)\\(dublado\\)"),
-            Regex("(?i)\\(legendado\\)"),
-            Regex("(?i)todos os episódios"),
-            Regex("\\s*-\\s*$"),
-            Regex("\\(\\d{4}\\)")
-        )
-        
-        patterns.forEach { pattern ->
-            cleanName = cleanName.replace(pattern, "")
-        }
-        
-        return cleanName.trim().replace(Regex("\\s+"), " ")
     }
 
-    private suspend fun detectHasNextPage(document: org.jsoup.nodes.Document, currentPageNum: Int): Boolean {
-        return try {
-            val hasElements = document.select("article, .card, .anime-item").isNotEmpty()
-            if (!hasElements) return false
-            
-            val hasPagination = document.select(".pagination, .page-numbers, .paginacao").isNotEmpty()
-            val hasNextLink = document.select("a:contains(Próxima), a:contains(›), a:contains(>), a[href*='/${currentPageNum + 1}']").isNotEmpty()
-            
-            hasElements && (hasPagination || hasNextLink)
-        } catch (e: Exception) {
-            false
+    private fun cardsOf(arr: JSONArray?): List<SearchResponse> {
+        val out = mutableListOf<SearchResponse>()
+        if (arr == null) return out
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            cardToResponse(o)?.let { out.add(it) }
         }
+        return out
+    }
+
+    private fun hasNextOf(json: JSONObject): Boolean {
+        val meta = json.optJSONObject("meta") ?: return false
+        return meta.optInt("current_page", 1) < meta.optInt("last_page", 1)
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        return loadingMutex.withLock {
-            try {
-                val isFixedTab = FIXED_CATEGORIES.any { it.second == request.name }
-                val basePath = request.data.removePrefix(mainUrl)
-                val sitePageNumber = page + 1
-                
-                val pageUrl = if (sitePageNumber == 1) {
-                    "$mainUrl$basePath"
-                } else {
-                    "$mainUrl$basePath/$sitePageNumber"
-                }
-                
-                val document = app.get(pageUrl, timeout = 25).document
-                val elements = document.select("""
-                    article a,
-                    .card a,
-                    .anime-item a,
-                    a[href*='/animes/'],
-                    a[href*='/filmes/']
-                """).take(50)
-                
-                val homeItems = mutableListOf<SearchResponse>()
-                
-                elements.forEach { element ->
-                    try {
-                        val item = element.toSearchResponse()
-                        if (item != null) {
-                            homeItems.add(item)
-                        }
-                    } catch (e: Exception) {
+        return try {
+            val sep = if (request.data.contains("?")) "&" else "?"
+            val url = if (page > 1) "${request.data}${sep}page=$page" else request.data
+            val json = JSONObject(app.get(url, headers = API_HEADERS).text)
+            val items = mutableListOf<SearchResponse>()
+
+            if (request.data.endsWith("/home")) {
+                val d = json.getJSONObject("data")
+                items.addAll(cardsOf(d.optJSONObject("hero")?.optJSONArray("items")))
+                val carousels = d.optJSONArray("carousels")
+                if (carousels != null) {
+                    for (i in 0 until carousels.length()) {
+                        items.addAll(cardsOf(carousels.optJSONObject(i)?.optJSONArray("items")))
                     }
                 }
-                
-                val hasNextPage = detectHasNextPage(document, sitePageNumber)
-                
-                newHomePageResponse(
-                    request.name,
-                    homeItems.distinctBy { it.url },
-                    hasNext = hasNextPage
-                )
-                
-            } catch (e: Exception) {
-                newHomePageResponse(request.name, emptyList(), false)
+            } else if (request.data.endsWith("/animes/lancamentos")) {
+                val d = json.getJSONObject("data")
+                items.addAll(cardsOf(d.optJSONArray("animes")))
+                items.addAll(cardsOf(d.optJSONObject("upcoming")?.optJSONArray("items")))
+            } else {
+                items.addAll(cardsOf(json.optJSONArray("data")))
             }
+
+            newHomePageResponse(request.name, items.distinctBy { it.url }, hasNext = hasNextOf(json))
+        } catch (e: Exception) {
+            newHomePageResponse(request.name, emptyList(), hasNext = false)
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
         if (query.length < 2) return emptyList()
-        
-        val searchUrl = "$mainUrl$SEARCH_PATH/${query.trim().replace(" ", "-").lowercase()}"
-        
         return try {
-            val document = app.get(searchUrl, timeout = 15).document
-            
-            document.select("a[href*='/animes/'], a[href*='/filmes/']")
-                .mapNotNull { it.toSearchResponse() }
-                .distinctBy { it.url }
-                .take(30)
-                
+            val enc = URLEncoder.encode(query.trim(), "UTF-8")
+            val json = JSONObject(app.get("$API/animes/pesquisar?q=$enc", headers = API_HEADERS).text)
+            cardsOf(json.optJSONArray("data"))
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-    private fun extractTextAfterLabel(document: org.jsoup.nodes.Document, label: String): String? {
-        return document.select("div.animeInfo:contains($label) span.spanAnimeInfo")
-            .firstOrNull()?.text()?.trim()
-    }
-
-    private fun extractYear(text: String?): Int? {
-        if (text.isNullOrBlank()) return null
-        val yearRegex = Regex("""(\d{4})""")
-        val match = yearRegex.find(text)
-        return match?.groupValues?.get(1)?.toIntOrNull()
-    }
-
-    override suspend fun load(url: String): LoadResponse {
+    override suspend fun search(query: String, page: Int): SearchResponseList? {
+        if (query.length < 2) return null
         return try {
-            val document = app.get(url, timeout = 35).document
-            
-            val title = document.selectFirst("h1.quicksand400")?.text()?.trim() 
-                ?: document.selectFirst("h1.animeTitle, h1")?.text()?.trim() 
-                ?: "Sem Título"
-            
-            val poster = extractDetailPoster(document)
-            val background = poster
-            
-            val synopsis = document.selectFirst("div.divSinopse span.spanAnimeInfo")
-                ?.text()
-                ?.trim()
-                ?: document.selectFirst("div.divSinopse")
-                ?.text()
-                ?.replace("Sinopse:", "")
-                ?.trim()
-                ?: document.selectFirst("p.sinopse, .description")
-                ?.text()
-                ?.trim()
-                ?: "Sinopse não disponível."
-            
-            val yearText = extractTextAfterLabel(document, "Ano:")
-            val year = extractYear(yearText)
-            
-            val statusElement = document.selectFirst("div.animeInfo:contains(Status do Anime:) span.spanAnimeInfo")
-            val statusText = statusElement?.text()?.trim() ?: "Desconhecido"
-            val showStatus = getStatus(statusText)
-            
-            val genres = mutableListOf<String>()
-            document.select("div.animeInfo a[href*='/genero/']").forEach { element ->
-                element.text().trim().takeIf { it.isNotBlank() }?.let { 
-                    genres.add(it) 
-                }
-            }
-            
-            if (genres.isEmpty()) {
-                document.select("div.animeInfo:contains(Gênero:) span.spanAnimeInfo")
-                    .firstOrNull()
-                    ?.text()
-                    ?.trim()
-                    ?.split(",", ";")
-                    ?.forEach { genre ->
-                        genre.trim().takeIf { it.isNotBlank() }?.let { 
-                            genres.add(it) 
-                        }
-                    }
-            }
-            
-            val audioText = extractTextAfterLabel(document, "Áudio:")
-            val hasDub = audioText?.contains("dublado", ignoreCase = true) ?: false
-            val hasSub = audioText?.contains("legendado", ignoreCase = true) ?: true
-            
-            val studio = extractTextAfterLabel(document, "Estúdios:")
-            
-            val scoreText = document.selectFirst("#anime_score")?.text()?.trim()
-            val score = scoreText?.toFloatOrNull()?.let { Score.from10(it) }
-            
-            val isMovie = url.contains("/filmes/") || 
-                         title.contains("filme", ignoreCase = true)
-            
-            val episodes = extractAllEpisodesFuncional(document, url)
-            
-            val response = newAnimeLoadResponse(
-                title, 
-                url, 
-                if (isMovie) TvType.Movie else TvType.Anime
-            ) {
-                this.posterUrl = poster
-                this.backgroundPosterUrl = background
-                this.year = year
-                this.plot = synopsis
-                this.tags = genres
-                this.score = score
-                
-                studio?.let { 
-                    try {
-                        val studioField = this::class.members.find { it.name == "studio" }
-                        studioField?.call(this, it)
-                    } catch (e: Exception) {
-                    }
-                }
-                
-                if (episodes.isNotEmpty()) {
-                    addEpisodes(DubStatus.Subbed, episodes)
-                }
-            }
-            
-            response
-            
+            val enc = URLEncoder.encode(query.trim(), "UTF-8")
+            val json = JSONObject(app.get("$API/animes/pesquisar?q=$enc&page=$page", headers = API_HEADERS).text)
+            cardsOf(json.optJSONArray("data")).toNewSearchResponseList(hasNextOf(json))
         } catch (e: Exception) {
-            newAnimeLoadResponse("Erro ao carregar", url, TvType.Anime) {
-                this.plot = "Não foi possível carregar esta página."
-            }
+            null
         }
     }
 
-    private fun extractAllEpisodesFuncional(document: org.jsoup.nodes.Document, baseUrl: String): List<Episode> {
-        val episodes = mutableListOf<Episode>()
-        val animeTitle = document.selectFirst("h1.quicksand400")?.text()?.trim() ?: ""
-        
-        val selectors = listOf(
-            "div.div_video_list a.lEp.epT",
-            "a.lEp.epT, a.lEp, .divListaEps a, [href*='/video/'], [href*='/episodio/']"
-        )
-        
-        var episodeElements: org.jsoup.select.Elements? = null
-        
-        for (selector in selectors) {
-            val elements = document.select(selector)
-            if (elements.isNotEmpty()) {
-                episodeElements = elements
-                break
-            }
-        }
-        
-        if (episodeElements == null || episodeElements.isEmpty()) {
-            val allLinks = document.select("a[href]")
-            val filteredElements = mutableListOf<org.jsoup.nodes.Element>()
-            
-            allLinks.forEach { element ->
-                val href = element.attr("href")
-                if (href.matches(Regex(".*/animes/[^/]+/\\d+/?$"))) {
-                    filteredElements.add(element)
-                }
-            }
-            
-            episodeElements = org.jsoup.select.Elements(filteredElements)
-        }
-        
-        if (episodeElements == null || episodeElements.isEmpty()) {
-            return emptyList()
-        }
-        
-        episodeElements.forEachIndexed { index, element ->
-            try {
-                val href = element.attr("href")
-                var text = element.text().trim()
-                
-                if (href.isBlank() || text.isBlank()) {
-                    return@forEachIndexed
-                }
-                
-                if (animeTitle.isNotBlank()) {
-                    text = text.replace(animeTitle, "").trim()
-                    text = text.replace(Regex("^\\s*-\\s*"), "").trim()
-                }
-                
-                if (text.length > 30) {
-                    val epMatch = Regex("""Epis[oó]dio\s*\d+""", RegexOption.IGNORE_CASE).find(text)
-                    if (epMatch != null) {
-                        text = epMatch.value
+    override suspend fun load(url: String): LoadResponse? {
+        val id = url.substringAfterLast("/anime/").substringBefore("?").substringBefore("#")
+        if (id.isBlank()) return null
+        return try {
+            val data = JSONObject(app.get("$API/anime/$id", headers = API_HEADERS).text)
+                .getJSONObject("data")
+            val hero = data.getJSONObject("hero")
+            val title = titleOf(hero)
+
+            val dubEps = mutableListOf<Episode>()
+            val subEps = mutableListOf<Episode>()
+            val epsArr = data.optJSONArray("episodes")
+            if (epsArr != null) {
+                for (i in 0 until epsArr.length()) {
+                    val e = epsArr.optJSONObject(i) ?: continue
+                    val epId = e.optString("id")
+                    if (epId.isBlank()) continue
+                    val ep = newEpisode("$mainUrl/episode/$epId") {
+                        this.name = e.optString("title").ifBlank { null }
+                        this.episode = e.optInt("number", 0).takeIf { it > 0 }
+                        this.season = e.optInt("season", 1).takeIf { it > 0 }
+                        this.posterUrl = e.optString("still_src").ifBlank { null }
+                    }
+                    if (e.optString("audio", "").contains("dublado", true)) {
+                        dubEps.add(ep)
+                    } else {
+                        subEps.add(ep)
                     }
                 }
-                
-                val epNum = extractEpisodeNumberFuncional(text, href) ?: (index + 1)
-                if (!text.contains(Regex("""Epis[oó]dio""", RegexOption.IGNORE_CASE))) {
-                    text = "Episódio $epNum"
-                }
-                
-                val episodeNumber = epNum
-                
-                val fixedHref = when {
-                    href.startsWith("//") -> "https:$href"
-                    href.startsWith("/") -> "$mainUrl$href"
-                    !href.startsWith("http") -> "$mainUrl/$href"
-                    else -> href
-                }
-                
-                val episode = newEpisode(fixedHref) {
-                    this.name = text
-                    this.episode = episodeNumber
-                    this.season = 1
-                }
-                
-                episodes.add(episode)
-                
-            } catch (e: Exception) {
             }
-        }
-        
-        return episodes.sortedBy { it.episode }
-    }
 
-    private fun extractEpisodeNumberFuncional(text: String, href: String = ""): Int? {
-        val textPatterns = listOf(
-            Regex("""Epis[oó]dio\s*(\d+)""", RegexOption.IGNORE_CASE),
-            Regex("""Ep\.?\s*(\d+)""", RegexOption.IGNORE_CASE),
-            Regex("""\b(\d+)$""")
-        )
-        
-        for (pattern in textPatterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                return match.groupValues[1].toIntOrNull()
+            newAnimeLoadResponse(title, url, TvType.Anime) {
+                this.posterUrl = hero.optString("poster_src").ifBlank { null }
+                this.backgroundPosterUrl = hero.optString("backdrop_src").ifBlank { null }
+                this.plot = hero.optString("synopsis").ifBlank { null }
+                this.year = yearOf(hero)
+                val sc = hero.optDouble("score", 0.0)
+                if (sc > 0) this.score = Score.from10(sc.toFloat())
+                val genresArr = hero.optJSONArray("genres")
+                if (genresArr != null && genresArr.length() > 0) {
+                    this.tags = (0 until genresArr.length()).map { genresArr.getString(it) }
+                }
+                this.showStatus = when (hero.optString("status")) {
+                    "completed" -> ShowStatus.Completed
+                    "airing" -> ShowStatus.Ongoing
+                    else -> null
+                }
+                if (dubEps.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubEps)
+                if (subEps.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEps)
+
+                val recs = mutableListOf<SearchResponse>()
+                recs.addAll(cardsOf(data.optJSONObject("relations")?.optJSONArray("items")))
+                recs.addAll(cardsOf(data.optJSONObject("recommendations")?.optJSONArray("items")))
+                if (recs.isNotEmpty()) this.recommendations = recs.distinctBy { it.url }
             }
+        } catch (e: Exception) {
+            null
         }
-        
-        val urlPattern = Regex("""/animes/[^/]+/(\d+)$""")
-        val urlMatch = urlPattern.find(href)
-        if (urlMatch != null) {
-            return urlMatch.groupValues[1].toIntOrNull()
-        }
-        
-        return null
     }
 
     override suspend fun loadLinks(
@@ -610,8 +203,41 @@ class AnimeFire : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        val id = data.substringAfterLast("/episode/").substringBefore("?").substringBefore("#")
+        if (id.isBlank()) return false
         return try {
-            AnimeFireVideoExtractor.extractVideoLinks(data, mainUrl, name, callback)
+            val json = JSONObject(app.get("$API/episode/$id", headers = API_HEADERS).text)
+                .getJSONObject("data")
+            var found = false
+            val streams = json.optJSONArray("streams")
+            if (streams != null) {
+                for (i in 0 until streams.length()) {
+                    val s = streams.optJSONObject(i) ?: continue
+                    val streamUrl = s.optString("url")
+                    if (streamUrl.isBlank()) continue
+                    if (s.optBoolean("is_mtl") || s.optBoolean("is_offline")) continue
+
+                    val isDub = s.optString("audio", "legendado").contains("dublado", true)
+                    val label = if (isDub) "Dublado" else "Legendado"
+                    val qualities = s.optString("qualities", "")
+                    val height = Regex("\"(\\d{3,4})p\"").findAll(qualities)
+                        .map { it.groupValues[1].toInt() }.maxOrNull()
+
+                    callback.invoke(
+                        newExtractorLink(
+                            source = "AnimeFire",
+                            name = "AnimeFire $label" + (height?.let { " (${it}p)" } ?: ""),
+                            url = streamUrl,
+                            type = if (streamUrl.contains(".m3u8")) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                        ) {
+                            this.quality = height ?: 0
+                            this.referer = "https://animefire.one/"
+                        }
+                    )
+                    found = true
+                }
+            }
+            found
         } catch (e: Exception) {
             false
         }

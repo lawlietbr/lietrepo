@@ -39,11 +39,11 @@ fun getLocalProperty(key: String): String? {
 }
 
 cloudstream {
-    version = 3
+    version = 4
     description = "MendigoFlix - Filmes e Séries em Português"
     language = "pt-br"
     authors = listOf("lawlietbr")
-    status = 1
+    status = 0 // site fora do ar (domínio morto) - 2026-11
     tvTypes = listOf("Movies", "Series", "Animes")
     iconUrl = "https://mendigoflix.lol/assets/favicon.png"
 }
