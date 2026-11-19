@@ -69,7 +69,7 @@ object PobreFlixExtractor {
         return found
     }
 
-    private fun collectLinks(node: Any?, seen: MutableSet<String>, out: MutableList<ExtractorLink>) {
+    private suspend fun collectLinks(node: Any?, seen: MutableSet<String>, out: MutableList<ExtractorLink>) {
         when (node) {
             is JSONObject -> {
                 var label = node.optString("label").ifBlank { null }
@@ -105,7 +105,7 @@ object PobreFlixExtractor {
         }
     }
 
-    private fun addLink(url: String, label: String?, out: MutableList<ExtractorLink>) {
+    private suspend fun addLink(url: String, label: String?, out: MutableList<ExtractorLink>) {
         val quality = Regex("(\\d{3,4})p?").find(label ?: "")?.groupValues?.get(1)?.toIntOrNull() ?: 0
         out.add(
             newExtractorLink(
