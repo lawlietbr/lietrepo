@@ -188,8 +188,11 @@ class Goyabu : MainAPI() {
         val isAnimePage = href.contains("/anime/")
         if (!isAnimePage || isEpisodePage) return null
 
-        val titleElement = selectFirst(".title, .hidden-text")
-        val rawTitle = titleElement?.text()?.trim() ?: return null
+        // tema novo usa h3/h2 (validado em provider ativo de terceiros) + img alt
+        val titleElement = selectFirst(".title, .hidden-text, h3, h2")
+        val rawTitle = titleElement?.text()?.trim()?.takeIf { it.isNotBlank() }
+            ?: selectFirst("img")?.attr("alt")?.trim()?.takeIf { it.isNotBlank() }
+            ?: return null
         val cleanedTitle = cleanTitle(rawTitle)
 
         if (cleanedTitle.isBlank()) return null
@@ -235,7 +238,7 @@ class Goyabu : MainAPI() {
                 val url = if (page > 1) "${request.data}page/$page/" else request.data
                 val document = app.get(url, timeout = 20).document
 
-                val elements = document.select("article a, .boxAN a, a[href*='/anime/']")
+                val elements = document.select("article a, .boxAN a, .anime-item a, .post a, a[href*='/anime/']")
 
                 val homeItems = elements.mapNotNull { it.toSearchResponse() }
                     .distinctBy { it.url }
@@ -256,7 +259,7 @@ class Goyabu : MainAPI() {
         return try {
             val document = app.get(searchUrl, timeout = 20).document
 
-            document.select("article a, .boxAN a, a[href*='/anime/']")
+            document.select("article a, .boxAN a, .anime-item a, .post a, a[href*='/anime/']")
                 .mapNotNull { it.toSearchResponse() }
                 .distinctBy { it.url }
                 .take(25)
