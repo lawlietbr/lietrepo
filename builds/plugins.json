@@ -1,10 +1,30 @@
 [
     {
         "iconUrl": "https://animefire.io/img/icons/favicon-192x192.png",
-        "fileHash": "sha256-703b93a892cde81dc826e208ecc52bdadefbd5b02484f872593485da58a052e9",
+        "fileHash": "sha256-562a92307e18c509ae90f00260312e8708916e0cbfbbe00e4b2a51e33e0c09ed",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 34919,
+        "fileSize": 35575,
+        "status": 1,
+        "language": "pt-br",
+        "authors": [
+            "lawlietbr"
+        ],
+        "tvTypes": [
+            "Animes"
+        ],
+        "version": 4,
+        "internalName": "AnimeFire",
+        "description": "Site brasileiro de animes em portugu\u00eas",
+        "url": "https://github.com/Massna/lietrepo/raw/refs/heads/main/builds/AnimeFire.cs3",
+        "name": "AnimeFire"
+    },
+    {
+        "iconUrl": "https://www.anitube.news/wp-content/uploads/cropped-Favicon6-192x192.png",
+        "fileHash": "sha256-81899820c299c6206ab8faadfa9896e1321ad8f249e9833f83d5bc1f626e992b",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
+        "fileSize": 36456,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -14,26 +34,6 @@
             "Animes"
         ],
         "version": 3,
-        "internalName": "AnimeFire",
-        "description": "Site brasileiro de animes em portugu\u00eas",
-        "url": "https://github.com/Massna/lietrepo/raw/refs/heads/main/builds/AnimeFire.cs3",
-        "name": "AnimeFire"
-    },
-    {
-        "iconUrl": "https://www.anitube.news/wp-content/uploads/cropped-Favicon6-192x192.png",
-        "fileHash": "sha256-7b340000d3e6f7e2424ffe8bf03f2db0fc3b0cdbe49c3cc74f89c1479e287a9d",
-        "apiVersion": 1,
-        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 35471,
-        "status": 1,
-        "language": "pt-br",
-        "authors": [
-            "lawlietbr"
-        ],
-        "tvTypes": [
-            "Animes"
-        ],
-        "version": 2,
         "internalName": "AniTube",
         "description": "AniTube \u00e9 um site para assistir seus animes favoritos online e de onde quiser, temos uma lista completa com diversos animes recentes e antigos para voc\u00ea explorar e o melhor disso tudo \u00e9 a qualidade do nosso site que o diferencia de outros.",
         "url": "https://github.com/Massna/lietrepo/raw/refs/heads/main/builds/AniTube.cs3",
@@ -41,10 +41,10 @@
     },
     {
         "iconUrl": "https://cineagora.net/templates/cineagora/images/touch-icon-180x180.png",
-        "fileHash": "sha256-2b8aa9ec004f3a4defbeff51f59f02fb040fdb3cc288351c29b37ea3dbd76573",
+        "fileHash": "sha256-2760af56ceed76e31e30eb8df6e52e296f5ddca1d2e224f4cde1ff8a636342cb",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 66851,
+        "fileSize": 66871,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -55,7 +55,7 @@
             "Series",
             "Animes"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "CineAgora",
         "description": "Assista filmes e s\u00e9ries online gr\u00e1tis em HD no CineAgora",
         "url": "https://github.com/Massna/lietrepo/raw/refs/heads/main/builds/CineAgora.cs3",
@@ -165,10 +165,10 @@
     },
     {
         "iconUrl": "https://www.image2url.com/r2/default/images/1776018665375-eafe8c65-10f1-490c-9994-2f519402b6e3.png",
-        "fileHash": "sha256-20375e07468dbc4fb5a2ef918036364d177140ab9b64188f3823df909ea09e54",
+        "fileHash": "sha256-ef877f939a1cccc0d8f63b60b68df25996eac83ecd814cb2ddc6de7b2955be47",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 25839,
+        "fileSize": 31648,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -180,7 +180,7 @@
             "Animes",
             "AsianDrama"
         ],
-        "version": 4,
+        "version": 5,
         "internalName": "PobreFlix",
         "description": "PobreFlix, assistir online, filmes, s\u00e9ries, animes, doramas",
         "url": "https://github.com/Massna/lietrepo/raw/refs/heads/main/builds/PobreFlix.cs3",
