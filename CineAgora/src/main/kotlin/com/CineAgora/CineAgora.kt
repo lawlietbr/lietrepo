@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import java.text.SimpleDateFormat
 
 class CineAgora : MainAPI() {
-    override var mainUrl = "https://cineagora.net"
+    override var mainUrl = "https://cineagora.club"
     override var name = "CineAgora"
     override val hasMainPage = true
     override var lang = "pt-br"
@@ -29,37 +29,37 @@ class CineAgora : MainAPI() {
         )
         
         private val SECTION_URLS = mapOf(
-            "ultimos-filmes" to "https://cineagora.net/filmes-hd-online/",
-            "ultimas-series" to "https://cineagora.net/series-online-hd-gratis/",
-            "filmes-populares" to "https://cineagora.net/filmes-hd-online/filmes-populares-hd/",
-            "series-populares" to "https://cineagora.net/series-online-hd-gratis/series-populares-hd/",
-            "netflix" to "https://cineagora.net/netflix/",
-            "paramount" to "https://cineagora.net/paramount/",
-            "disney" to "https://cineagora.net/disney/",
-            "apple" to "https://cineagora.net/apple/",
-            "hbo" to "https://cineagora.net/hbo/",
-            "acao" to "https://cineagora.net/filmes-hd-online/filmes-de-acao-hd/",
-            "aventura" to "https://cineagora.net/filmes-hd-online/filmes-de-aventura-gratis/",
-            "animacao" to "https://cineagora.net/filmes-hd-online/filmes-de-animacao-online/",
-            "biograficos" to "https://cineagora.net/filmes-hd-online/assistir-filmes-biograficos/",
-            "comedia" to "https://cineagora.net/filmes-hd-online/comedia-filmes-online/",
-            "crime" to "https://cineagora.net/filmes-hd-online/crime-filmes-online/",
-            "documentarios" to "https://cineagora.net/filmes-hd-online/documentarios-em-portugues/",
-            "esporte" to "https://cineagora.net/filmes-hd-online/filmes-de-esporte-hd/",
-            "drama" to "https://cineagora.net/filmes-hd-online/filmes-drama-online-hd/",
-            "familia" to "https://cineagora.net/filmes-hd-online/filmes-familia-online/",
-            "fantasia" to "https://cineagora.net/filmes-hd-online/filmes-fantasia-magia/",
-            "historicos" to "https://cineagora.net/filmes-hd-online/filmes-historicos-hd/",
-            "terror" to "https://cineagora.net/filmes-hd-online/filmes-terror-horror/",
-            "musicais" to "https://cineagora.net/filmes-hd-online/filmes-musicais-online/",
-            "misterio" to "https://cineagora.net/filmes-hd-online/filmes-misterio-suspense/",
-            "romanticos" to "https://cineagora.net/filmes-hd-online/filmes-romanticos-online/",
-            "suspense" to "https://cineagora.net/filmes-hd-online/filmes-suspense-hd/",
-            "sci-fi" to "https://cineagora.net/filmes-hd-online/ficcao-cientifica-hd/",
-            "tv" to "https://cineagora.net/filmes-hd-online/filmes-para-tv-hd/",
-            "thriller" to "https://cineagora.net/filmes-hd-online/thriller-suspense-online/",
-            "guerra" to "https://cineagora.net/filmes-hd-online/filmes-guerra-epicas/",
-            "faroeste" to "https://cineagora.net/filmes-hd-online/filmes-faroeste-online/"
+            "ultimos-filmes" to "https://cineagora.club/filmes-hd-online/",
+            "ultimas-series" to "https://cineagora.club/series-online-hd-gratis/",
+            "filmes-populares" to "https://cineagora.club/filmes-hd-online/filmes-populares-hd/",
+            "series-populares" to "https://cineagora.club/series-online-hd-gratis/series-populares-hd/",
+            "netflix" to "https://cineagora.club/netflix/",
+            "paramount" to "https://cineagora.club/paramount/",
+            "disney" to "https://cineagora.club/disney/",
+            "apple" to "https://cineagora.club/apple/",
+            "hbo" to "https://cineagora.club/hbo/",
+            "acao" to "https://cineagora.club/filmes-hd-online/filmes-de-acao-hd/",
+            "aventura" to "https://cineagora.club/filmes-hd-online/filmes-de-aventura-gratis/",
+            "animacao" to "https://cineagora.club/filmes-hd-online/filmes-de-animacao-online/",
+            "biograficos" to "https://cineagora.club/filmes-hd-online/assistir-filmes-biograficos/",
+            "comedia" to "https://cineagora.club/filmes-hd-online/comedia-filmes-online/",
+            "crime" to "https://cineagora.club/filmes-hd-online/crime-filmes-online/",
+            "documentarios" to "https://cineagora.club/filmes-hd-online/documentarios-em-portugues/",
+            "esporte" to "https://cineagora.club/filmes-hd-online/filmes-de-esporte-hd/",
+            "drama" to "https://cineagora.club/filmes-hd-online/filmes-drama-online-hd/",
+            "familia" to "https://cineagora.club/filmes-hd-online/filmes-familia-online/",
+            "fantasia" to "https://cineagora.club/filmes-hd-online/filmes-fantasia-magia/",
+            "historicos" to "https://cineagora.club/filmes-hd-online/filmes-historicos-hd/",
+            "terror" to "https://cineagora.club/filmes-hd-online/filmes-terror-horror/",
+            "musicais" to "https://cineagora.club/filmes-hd-online/filmes-musicais-online/",
+            "misterio" to "https://cineagora.club/filmes-hd-online/filmes-misterio-suspense/",
+            "romanticos" to "https://cineagora.club/filmes-hd-online/filmes-romanticos-online/",
+            "suspense" to "https://cineagora.club/filmes-hd-online/filmes-suspense-hd/",
+            "sci-fi" to "https://cineagora.club/filmes-hd-online/ficcao-cientifica-hd/",
+            "tv" to "https://cineagora.club/filmes-hd-online/filmes-para-tv-hd/",
+            "thriller" to "https://cineagora.club/filmes-hd-online/thriller-suspense-online/",
+            "guerra" to "https://cineagora.club/filmes-hd-online/filmes-guerra-epicas/",
+            "faroeste" to "https://cineagora.club/filmes-hd-online/filmes-faroeste-online/"
         )
     }
 

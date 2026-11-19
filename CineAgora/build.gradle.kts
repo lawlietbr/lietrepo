@@ -40,13 +40,13 @@ fun getLocalProperty(key: String): String? {
 }
 
 cloudstream {
-    version = 1
+    version = 2
     description = "Assista filmes e séries online grátis em HD no CineAgora"
     language = "pt-br"
     authors = listOf("lawlietbr")
     status = 1
     tvTypes = listOf("Movies", "Series", "Animes")
-    iconUrl = "https://cineagora.net/templates/cineagora/images/touch-icon-180x180.png"
+    iconUrl = "https://cineagora.club/templates/cineagora/images/touch-icon-180x180.png"
 }
 
 dependencies {
