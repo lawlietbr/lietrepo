@@ -142,28 +142,6 @@
         "name": "Goyabu"
     },
     {
-        "iconUrl": "https://mendigoflix.lol/assets/favicon.png",
-        "fileHash": "sha256-3fb02bfcb94e6e66068083c2b0008a3fac80914fe5567ab6cec9b53c90d29d2a",
-        "apiVersion": 1,
-        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 50136,
-        "status": 1,
-        "language": "pt-br",
-        "authors": [
-            "lawlietbr"
-        ],
-        "tvTypes": [
-            "Movies",
-            "Series",
-            "Animes"
-        ],
-        "version": 3,
-        "internalName": "MendigoFlix",
-        "description": "MendigoFlix - Filmes e S\u00e9ries em Portugu\u00eas",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/MendigoFlix.cs3",
-        "name": "MendigoFlix"
-    },
-    {
         "iconUrl": "https://www.image2url.com/r2/default/images/1776423716151-20e5aa74-a764-4d60-8575-0851d8ab37df.png",
         "fileHash": "sha256-da7a78f532646471977e07f565400b400c4b5a03248772d58d0f2c4997e2e756",
         "apiVersion": 1,
