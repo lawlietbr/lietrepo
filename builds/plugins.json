@@ -41,10 +41,10 @@
     },
     {
         "iconUrl": "https://cineagora.club/templates/cineagora/images/touch-icon-180x180.png",
-        "fileHash": "sha256-2356ad835090815d310db95fba5364b57997dc1a9de446be06cf2cf14727af53",
+        "fileHash": "sha256-4deba29f76b076d35753f1a199fe0fa4e964d2950106921b8c755c62b3d759b2",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 59713,
+        "fileSize": 59051,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -55,7 +55,7 @@
             "Series",
             "Animes"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "CineAgora",
         "description": "Assista filmes e s\u00e9ries online gr\u00e1tis em HD no CineAgora",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/CineAgora.cs3",
@@ -143,10 +143,10 @@
     },
     {
         "iconUrl": "https://www.image2url.com/r2/default/images/1776423716151-20e5aa74-a764-4d60-8575-0851d8ab37df.png",
-        "fileHash": "sha256-3e68b5b4cb01a63ee551cc245c24cf374d36a991c585d9ff5314b55a4e515cd0",
+        "fileHash": "sha256-6d8a34cfa4d190ddccb97b4cd95b5f161dbbcfb8d638118270af7aa2b31315a9",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 24775,
+        "fileSize": 24950,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -155,7 +155,7 @@
         "tvTypes": [
             "Live"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "ReiDosEmbeds",
         "description": "Rei dos Embeds - O melhor diret\u00f3rio de canais ao vivo. Mais de 150 canais dispon\u00edveis.",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/ReiDosEmbeds.cs3",
@@ -163,10 +163,10 @@
     },
     {
         "iconUrl": "https://topflix.actor/apple-touch-icon.png",
-        "fileHash": "sha256-714ffd0d8c78db695f9fa7fadadb482d999fb302cc26183996ddd4912787e375",
+        "fileHash": "sha256-f9c9cce7bb0ba39b75df838a6d30382217f19bab3c13eaff2e1d1396c8a3861b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 26443,
+        "fileSize": 24877,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -176,7 +176,7 @@
             "Movies",
             "Series"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "TopFlix",
         "description": "Filmes e S\u00e9ries Online em HD no TopFlix",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/TopFlix.cs3",
