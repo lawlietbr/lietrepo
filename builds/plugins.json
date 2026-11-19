@@ -163,10 +163,10 @@
     },
     {
         "iconUrl": "https://topflix.actor/apple-touch-icon.png",
-        "fileHash": "sha256-f9c9cce7bb0ba39b75df838a6d30382217f19bab3c13eaff2e1d1396c8a3861b",
+        "fileHash": "sha256-2d00f4ca4732ca497aadff922a0c4595b7fd6f7867e3e68b59a80480d7c4c08b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 24877,
+        "fileSize": 25118,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -176,7 +176,7 @@
             "Movies",
             "Series"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "TopFlix",
         "description": "Filmes e S\u00e9ries Online em HD no TopFlix",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/TopFlix.cs3",
