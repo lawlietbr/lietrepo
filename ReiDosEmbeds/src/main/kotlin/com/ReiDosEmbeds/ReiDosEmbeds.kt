@@ -144,11 +144,17 @@ class ReiDosEmbeds : MainAPI() {
                 val indexUrl = "$baseUrl/"
                 val doc = app.get(indexUrl, headers = defaultHeaders, cacheTime = 15).document
                 
-                // Mapeia todas as opções do menu dropdown
+                // Mapeia todas as opções do menu dropdown (ignorando categoria Adulto)
                 val genreOptions = doc.select("select[name=genre] option").mapNotNull {
                     val value = it.attr("value")
                     val name = it.text().trim()
-                    if (value.isNotBlank() && value != "all" && value != "Todas as categorias") Pair(value, name) else null
+                    val isAdult = value.contains("adulto", ignoreCase = true) ||
+                        name.contains("adulto", ignoreCase = true) ||
+                        value.contains("18", ignoreCase = true) ||
+                        name.contains("+18", ignoreCase = true)
+                    if (value.isNotBlank() && value != "all" && value != "Todas as categorias" && !isAdult) {
+                        Pair(value, name)
+                    } else null
                 }
 
                 // O amap executa em blocos protegendo contra o Timeout do Cloudstream, enquanto respeita o servidor

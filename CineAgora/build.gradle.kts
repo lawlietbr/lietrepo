@@ -40,7 +40,7 @@ fun getLocalProperty(key: String): String? {
 }
 
 cloudstream {
-    version = 2
+    version = 3
     description = "Assista filmes e séries online grátis em HD no CineAgora"
     language = "pt-br"
     authors = listOf("lawlietbr")

@@ -945,9 +945,9 @@ class CineAgora : MainAPI() {
         }
         
         return if (isSerie) {
-            createSeriesLoadResponse(tmdbInfo, url, enrichedEpisodes, recommendations, plotFromSite, genresFromSite, bannerUrl, posterUrl, yearFromSite)
+            createSeriesLoadResponse(tmdbInfo, cleanTitle, url, enrichedEpisodes, recommendations, plotFromSite, genresFromSite, bannerUrl, posterUrl, yearFromSite)
         } else {
-            createMovieLoadResponse(tmdbInfo, playerUrl, recommendations, plotFromSite, genresFromSite, bannerUrl, posterUrl, yearFromSite)
+            createMovieLoadResponse(tmdbInfo, cleanTitle, playerUrl, recommendations, plotFromSite, genresFromSite, bannerUrl, posterUrl, yearFromSite)
         }
     }
         
@@ -975,6 +975,7 @@ class CineAgora : MainAPI() {
 
     private suspend fun createSeriesLoadResponse(
         tmdbInfo: TMDBInfo?,
+        titleFromSite: String,
         url: String,
         episodes: List<Episode>,
         siteRecommendations: List<SearchResponse>,
@@ -984,7 +985,7 @@ class CineAgora : MainAPI() {
         posterUrlFromSite: String?,
         yearFromSite: Int?
     ): LoadResponse {
-        val title = tmdbInfo?.title ?: app.get(url).document.selectFirst("h1.title, h1, .title, h2")?.text()?.trim() ?: "Título não encontrado"
+        val title = tmdbInfo?.title?.takeIf { it.isNotBlank() } ?: titleFromSite.ifBlank { "Título não encontrado" }
         val year = tmdbInfo?.year ?: yearFromSite
         val plot = tmdbInfo?.overview ?: plotFromSite
         val posterUrl = tmdbInfo?.posterUrl ?: posterUrlFromSite
@@ -1013,6 +1014,7 @@ class CineAgora : MainAPI() {
 
     private suspend fun createMovieLoadResponse(
         tmdbInfo: TMDBInfo?,
+        titleFromSite: String,
         playerUrl: String,
         siteRecommendations: List<SearchResponse>,
         plotFromSite: String?,
@@ -1021,7 +1023,7 @@ class CineAgora : MainAPI() {
         posterUrlFromSite: String?,
         yearFromSite: Int?
     ): LoadResponse {
-        val title = tmdbInfo?.title ?: "Título não encontrado"
+        val title = tmdbInfo?.title?.takeIf { it.isNotBlank() } ?: titleFromSite.ifBlank { "Título não encontrado" }
         val year = tmdbInfo?.year ?: yearFromSite
         val plot = tmdbInfo?.overview ?: plotFromSite
         val posterUrl = tmdbInfo?.posterUrl ?: posterUrlFromSite

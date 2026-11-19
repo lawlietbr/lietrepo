@@ -367,51 +367,19 @@ class TopFlix : MainAPI() {
                 "User-Agent" to USER_AGENT
             )
 
-            if (isHls) {
-                try {
-                    val m3u8Links = M3u8Helper.generateM3u8(
-                        source = sourceLabel,
-                        streamUrl = fullVideoUrl,
-                        referer = "$mainUrl/",
-                        headers = streamHeaders
-                    )
-                    if (m3u8Links.isNotEmpty()) {
-                        m3u8Links.forEach(callback)
-                        foundAny = true
-                        continue
-                    }
-                } catch (_: Exception) {
-                    // Fallback to direct M3U8 link below
+            callback(
+                newExtractorLink(
+                    source = sourceLabel,
+                    name = sourceLabel,
+                    url = fullVideoUrl,
+                    type = if (isHls) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                ) {
+                    this.referer = "$mainUrl/"
+                    this.quality = inferQualityFromUrl(fullVideoUrl)
+                    this.headers = streamHeaders
                 }
-
-                callback(
-                    newExtractorLink(
-                        source = sourceLabel,
-                        name = sourceLabel,
-                        url = fullVideoUrl,
-                        type = ExtractorLinkType.M3U8
-                    ) {
-                        this.referer = "$mainUrl/"
-                        this.quality = inferQualityFromUrl(fullVideoUrl)
-                        this.headers = streamHeaders
-                    }
-                )
-                foundAny = true
-            } else {
-                callback(
-                    newExtractorLink(
-                        source = sourceLabel,
-                        name = sourceLabel,
-                        url = fullVideoUrl,
-                        type = ExtractorLinkType.VIDEO
-                    ) {
-                        this.referer = "$mainUrl/"
-                        this.quality = inferQualityFromUrl(fullVideoUrl)
-                        this.headers = streamHeaders
-                    }
-                )
-                foundAny = true
-            }
+            )
+            foundAny = true
         }
 
         return foundAny
