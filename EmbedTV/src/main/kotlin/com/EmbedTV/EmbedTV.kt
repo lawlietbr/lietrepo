@@ -21,8 +21,8 @@ class EmbedTv : MainAPI() {
     override val hasQuickSearch = true
     override val supportedTypes = setOf(TvType.Live)
 
-    private val mainSite = "https://embedtv.lat"
-    private val baseUrl = "https://ww4.embedtv.lat"
+    private val mainSite = "https://embedtv.cc"
+    private val baseUrl = "ww0.embedtv.cc"
   
     private val blockedChannels = listOf("sexyhot", "playboy")
 
