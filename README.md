@@ -58,8 +58,7 @@ Projeto inspirado no saimuelrepo.
 
 Repositórios de referência:  
 - [![saimuelrepo](https://img.shields.io/badge/saimuelrepo-Repositório-FF6B6B?style=for-the-badge&logo=github)](https://github.com/saimuelbr/saimuelrepo)  
-- [![CloudStream Official](https://img.shields.io/badge/CloudStream_Official-GitHub-7289DA?style=for-the-badge&logo=github)](https://github.com/recloudstream/cloudstream)
-- [![CloudStream App](https://img.shields.io/badge/🌐_Baixar_CloudStream-2196F3?style=for-the-badge&logo=android)](https://cloudstream-apk.com/)  
+- [![CloudStream Official](https://img.shields.io/badge/CloudStream_Official-GitHub-7289DA?style=for-the-badge&logo=github)](https://github.com/recloudstream/cloudstream) 
 - [![Documentação CloudStream](https://img.shields.io/badge/📚_Documentação-4CAF50?style=for-the-badge&logo=readthedocs)](https://recloudstream.github.io/csdocs/)
 
 <br>
