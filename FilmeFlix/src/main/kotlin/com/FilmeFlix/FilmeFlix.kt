@@ -11,12 +11,26 @@ import java.net.URLEncoder
 
 @CloudstreamPlugin
 class FilmeFlixPlugin : Plugin() {
+    private var http: AbyssHttp? = null
+    private var proxy: AbyssProxy? = null
+
     override fun load(context: Context) {
-        registerMainAPI(FilmeFlix())
+        val upstream = AbyssHttp()
+        val server = AbyssProxy(upstream::fetch)
+        http = upstream
+        proxy = server
+        registerMainAPI(FilmeFlix(server))
+    }
+
+    override fun beforeUnload() {
+        proxy?.close()
+        http?.close()
+        proxy = null
+        http = null
     }
 }
 
-class FilmeFlix : MainAPI() {
+class FilmeFlix internal constructor(private val proxy: AbyssProxy) : MainAPI() {
     override var mainUrl = "https://filmeflix.space"
     override var name = "FilmeFlix"
     override val hasMainPage = true
@@ -281,7 +295,12 @@ class FilmeFlix : MainAPI() {
                     .replace("\\/", "/")
                     .trim()
                 if (embedUrl.isBlank() || !embedUrl.startsWith("http")) continue
-                if (embedUrl.contains("abyssplayer", ignoreCase = true)) continue
+                if (embedUrl.contains("abyssplayer", ignoreCase = true)) {
+                    if (!isCasting && AbyssResolver(proxy).resolve(embedUrl, data, optTitle.ifBlank { "Player $nume" }, callback)) {
+                        foundAny = true
+                    }
+                    continue
+                }
 
                 if (embedUrl.contains("vidmoly", ignoreCase = true)) {
                     if (extractVidmoly(embedUrl, label, callback)) {
