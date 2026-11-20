@@ -13,8 +13,15 @@ internal object UltraCatalog {
         if (title.isBlank()) return@mapNotNull null
         val image = card.selectFirst("img")
         val src = image?.attr("data-src")?.takeIf { it.isNotBlank() } ?: image?.attr("src")
+        val poster = src?.trim()?.takeIf { it.isNotBlank() }?.let { raw ->
+            when {
+                raw.startsWith("//") -> "https:$raw"
+                raw.startsWith("http://") || raw.startsWith("https://") -> raw
+                else -> URI(doc.baseUri()).resolve(raw).toString()
+            }
+        }
         val href = link.absUrl("href")
-        Item(title, href, src?.let { URI(doc.baseUri()).resolve(it).toString() }, href.contains("/serie/"))
+        Item(title, href, poster, href.contains("/serie/"))
     }.distinctBy { it.url }
 
     fun episodes(doc: Document, base: String): List<Episode> {

@@ -53,7 +53,14 @@ class UltraCineTV internal constructor(private val proxy: AbyssProxy) : MainAPI(
         val title = doc.selectFirst("h1.entry-title")?.text() ?: throw ErrorLoadingException("Título não encontrado")
         val panel = doc.selectFirst("iframe[src*=painel-aso]")?.absUrl("src")
             ?: throw ErrorLoadingException("Player não encontrado")
-        val poster = doc.selectFirst("article.single img")?.absUrl("src")
+        val poster = doc.selectFirst("article.single img")?.let { img ->
+            val raw = img.attr("data-src").ifBlank { img.attr("src") }.trim()
+            when {
+                raw.startsWith("//") -> "https:$raw"
+                raw.isNotBlank() -> fixUrl(raw)
+                else -> null
+            }
+        }
         val plot = doc.selectFirst(".description")?.text()
         if (url.contains("/serie/")) {
             val base = URI(panel).let { "${it.scheme}://${it.authority}" }
