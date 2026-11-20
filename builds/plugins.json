@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://animefire.io/img/icons/favicon-192x192.png",
-        "fileHash": "sha256-ebbc833dc3d475fcf66c27df858cac76ace7a04b4ba7a9797cfb5b040ffe85fc",
+        "fileHash": "sha256-f3ba41bdb27387cee96901b6063d4741f9d1ed860d840b5d2ef6abfa2bee0342",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 42078,
+        "fileSize": 41902,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -20,11 +20,32 @@
         "name": "AnimeFire"
     },
     {
-        "iconUrl": "https://www.anitube.news/wp-content/uploads/cropped-Favicon6-192x192.png",
-        "fileHash": "sha256-7d9bc0f8ad2cd986ec021d67ec83625a870af7a8a95a05e60430d379c331003f",
+        "iconUrl": "https://animesfhd.net/stremio/logo.png",
+        "fileHash": "sha256-74ba5fd374e57e5d438899ae5afb598bcb5a981850bc6852be2893b59249c92b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 35476,
+        "fileSize": 36032,
+        "status": 1,
+        "language": "pt-br",
+        "authors": [
+            "animesfhd"
+        ],
+        "tvTypes": [
+            "Anime",
+            "AnimeMovie"
+        ],
+        "version": 1,
+        "internalName": "AnimesFHD",
+        "description": "Animes legendados e dublados em portugu\u00eas (PT-BR) pelo AnimesFHD.",
+        "url": "https://github.com/lawlietbr/lietrepo/raw/refs/heads/main/builds/AnimesFHD.cs3",
+        "name": "AnimesFHD"
+    },
+    {
+        "iconUrl": "https://www.anitube.news/wp-content/uploads/cropped-Favicon6-192x192.png",
+        "fileHash": "sha256-7b340000d3e6f7e2424ffe8bf03f2db0fc3b0cdbe49c3cc74f89c1479e287a9d",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
+        "fileSize": 35471,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -41,10 +62,10 @@
     },
     {
         "iconUrl": "https://cineagora.net/templates/cineagora/images/touch-icon-180x180.png",
-        "fileHash": "sha256-7e1b1e4c398e4037eebf0e0444289b93a3c331b5b795b1f8424268c9e4de31bd",
+        "fileHash": "sha256-200a2f2d6293d9fff75e36ef4475248d5868b6bf57905842a037719a245d1544",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 66380,
+        "fileSize": 66868,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -63,10 +84,10 @@
     },
     {
         "iconUrl": "https://www.dattebayo-br.com/favicon.png",
-        "fileHash": "sha256-1494eee14531a69087839019ee25a4a4e3f5d27393b5ec2b6f216d6a96282b5c",
+        "fileHash": "sha256-36faadd6b9306fe5a09b7a7a4ac2250457c6ab95321951798d5a60c39e685f8d",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 29424,
+        "fileSize": 29092,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -83,10 +104,10 @@
     },
     {
         "iconUrl": "https://www.doramogo.net/assets/doramogo/images/apple-touch-icon.webp?version=200.50.10",
-        "fileHash": "sha256-e3903c01899d23e2909223abacd11dd87cd9f387ec4b1786854d84659f8c715d",
+        "fileHash": "sha256-542978ca4ed56a9db75f1db689c5fe93ac950c9171261ca956c9bde60c9948f7",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 57401,
+        "fileSize": 57996,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -103,10 +124,10 @@
     },
     {
         "iconUrl": "https://embedtv.best/assets/icon.png",
-        "fileHash": "sha256-977a71d2e1a9d0d8cc1d5658141dd00798f3302007422fc7ea542fe6a825bcaf",
+        "fileHash": "sha256-8c93323016583e5b151cbd0ed3c04600117360d36772a552875fc2d68dba3c7b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 15132,
+        "fileSize": 15240,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -123,10 +144,10 @@
     },
     {
         "iconUrl": "https://goyabu.io/wp-content/uploads/2025/12/cropped-goyabu-favicon-192x192.png",
-        "fileHash": "sha256-c344f38d8ce971c012675e3d9c62f3c8a93cd539d1eb2316929bbff3572341ce",
+        "fileHash": "sha256-9602fc37f2f0ee549f141b1baa9a38a2bb6aa9f60a2c52084a39b8ab4aba7139",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 32632,
+        "fileSize": 32494,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -143,10 +164,10 @@
     },
     {
         "iconUrl": "https://mendigoflix.lol/assets/favicon.png",
-        "fileHash": "sha256-d671e96c977a63caf562e49090d44ae726f35afd7bb7b3403bdec2adde05c99e",
+        "fileHash": "sha256-b24182e97fd34441254c11cff234edd8997be83556f7b6c39aca7fe2b4f3a0ba",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 54401,
+        "fileSize": 54854,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -165,10 +186,10 @@
     },
     {
         "iconUrl": "https://www.image2url.com/r2/default/images/1776018665375-eafe8c65-10f1-490c-9994-2f519402b6e3.png",
-        "fileHash": "sha256-e7fbfe9f966beed37f0733b9745177a9a315285fee172766a3e937b9c5f857a3",
+        "fileHash": "sha256-dfbdc94cd64b7cfd384610baccaed8e1b96c4bc91379540792f044f9b9f6063e",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 43752,
+        "fileSize": 43691,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -188,10 +209,10 @@
     },
     {
         "iconUrl": "https://www.image2url.com/r2/default/images/1776423716151-20e5aa74-a764-4d60-8575-0851d8ab37df.png",
-        "fileHash": "sha256-8152669c9267f1bc510ad8b23ef065de1c2d0006d06adf59a923bdc4546a0de9",
+        "fileHash": "sha256-6f04d4055cf1c2ec53076292d9ea37994439ce5e40b8f07ca20863105e1ba795",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 13481,
+        "fileSize": 13546,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -208,10 +229,10 @@
     },
     {
         "iconUrl": "https://openclipart.org/image/2400px/svg_to_png/193323/-S.png",
-        "fileHash": "sha256-7a1df29dded84778659312f61719cd8ddd08fc176459f19ab53b716c87cc1ed5",
+        "fileHash": "sha256-d4fc5224a38540347aa99dd4e25ebc33e9e430ce3783456170c9ee26a669b870",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 52933,
+        "fileSize": 53672,
         "status": 1,
         "language": "pt-br",
         "authors": [
