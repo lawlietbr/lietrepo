@@ -85,6 +85,27 @@
         "name": "CineAgora"
     },
     {
+        "iconUrl": "https://www.stuartartsupply.com/favicon.ico",
+        "fileHash": "sha256-fd6796c7376328804b34ef078c894d527efb542cc59c56b61b0860aa5bccdf4c",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
+        "fileSize": 12912,
+        "status": 1,
+        "language": "pt-br",
+        "authors": [
+            "lawlietbr"
+        ],
+        "tvTypes": [
+            "Movies",
+            "Cartoon"
+        ],
+        "version": 1,
+        "internalName": "Cinegato",
+        "description": "Filmes Dublados, Cinema Nacional e Desenhos Animados em HD no Cinegato",
+        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/Cinegato.cs3",
+        "name": "Cinegato"
+    },
+    {
         "iconUrl": "https://www.dattebayo-br.com/favicon.png",
         "fileHash": "sha256-608e65ca1626cb1ab9bd113a022268e10dd5f56dafa72be62b5abafc7582a921",
         "apiVersion": 1,
@@ -143,6 +164,28 @@
         "description": "Embed TV - O melhor site de TV online. ",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/EmbedTV.cs3",
         "name": "EmbedTV"
+    },
+    {
+        "iconUrl": "https://filmeflix.space/favicon.ico",
+        "fileHash": "sha256-c77e0d41dd62b322737be6e42cb10e960eaca74f7ebc263b19f9b376d70be4fc",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
+        "fileSize": 18955,
+        "status": 1,
+        "language": "pt-br",
+        "authors": [
+            "lawlietbr"
+        ],
+        "tvTypes": [
+            "Movies",
+            "Series",
+            "Cartoon"
+        ],
+        "version": 1,
+        "internalName": "FilmeFlix",
+        "description": "Filmes e S\u00e9ries Dublados e Nacionais em HD no FilmeFlix",
+        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/FilmeFlix.cs3",
+        "name": "FilmeFlix"
     },
     {
         "iconUrl": "https://goyabu.io/wp-content/uploads/2025/12/cropped-goyabu-favicon-192x192.png",
