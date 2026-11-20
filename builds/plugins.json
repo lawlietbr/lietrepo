@@ -269,5 +269,26 @@
         "description": "Filmes e S\u00e9ries Online em HD no TopFlix",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/TopFlix.cs3",
         "name": "TopFlix"
+    },
+    {
+        "iconUrl": "https://www.ultracinetv.lat/favicon.ico",
+        "fileHash": "sha256-33a723b2fd15b4e47707aeb3d59f79f1fda6c931f628180e74e0c573365e22db",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/guilhermehanti/lietrepo",
+        "fileSize": 45654,
+        "status": 3,
+        "language": "pt-br",
+        "authors": [
+            "guilhermehanti"
+        ],
+        "tvTypes": [
+            "Movies",
+            "Series"
+        ],
+        "version": 2,
+        "internalName": "UltraCineTV",
+        "description": "Filmes e s\u00e9ries do UltraCineTV via Abyss e Byse. Abyss reproduz localmente, sem casting.",
+        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/UltraCineTV.cs3",
+        "name": "UltraCineTV"
     }
 ]
