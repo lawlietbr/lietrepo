@@ -41,10 +41,10 @@
     },
     {
         "iconUrl": "https://www.anitube.biz/wp-content/themes/anitube_sarthemes/assets/img/favicon.png",
-        "fileHash": "sha256-a49807d3ebcc31329560f5aa816d36d0912397a0cfdd8db6e9b28831e7bccbe1",
+        "fileHash": "sha256-32ecff9485ee8ed76e4b44907c959020f7e5b80ed1d946dd50bf185e21a0a072",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 19231,
+        "fileSize": 19492,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -56,7 +56,7 @@
             "TvSeries",
             "Movie"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "AniTubeDesenhos",
         "description": "Desenhos (Cartoon Network, Disney, Cl\u00e1ssicos), Animes Dublados e Filmes no AniTube.biz",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/AniTubeDesenhos.cs3",
@@ -166,10 +166,10 @@
     },
     {
         "iconUrl": "https://www.pobreflixtvfree.net/assets/img/favicon.png",
-        "fileHash": "sha256-74f8796dc4ba63d8309d3ceaa3188912794f4c2935c7e219655a1b6bfc246d6c",
+        "fileHash": "sha256-d2f41e99e6bd11c067d3c1c147f5028f385dacad896e6326e2789b90ac2b8ed2",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 19047,
+        "fileSize": 19149,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -180,7 +180,7 @@
             "Series",
             "Cartoon"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "PobreFlixTV",
         "description": "Filmes, S\u00e9ries e Anima\u00e7\u00f5es Dublados e Legendados em HD no PobreFlixTV",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/PobreFlixTV.cs3",
