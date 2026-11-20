@@ -184,8 +184,15 @@ class PobreFlixTV : MainAPI() {
     ): Boolean {
         return try {
             val embedHtml = app.get(embedUrl, headers = defaultHeaders("$PLENOFLU_URL/")).text
-            val hash = Regex("""\|([a-f0-9]{32})\|FirePlayer""").find(embedHtml)?.groupValues?.get(1)
-                ?: Regex("""FirePlayer\(\s*["']([a-f0-9]{32})["']""").find(embedHtml)?.groupValues?.get(1)
+            val unpacked = try {
+                getAndUnpack(embedHtml)
+            } catch (_: Exception) {
+                ""
+            }
+            val hash = Regex("""FirePlayer\s*\(\s*["']([a-f0-9]{32})["']""").find(unpacked)?.groupValues?.get(1)
+                ?: Regex("""FirePlayer\s*\(\s*["']([a-f0-9]{32})["']""").find(embedHtml)?.groupValues?.get(1)
+                ?: Regex("""\|([a-f0-9]{32})\|FirePlayer""").find(embedHtml)?.groupValues?.get(1)
+                ?: Regex("""\|FirePlayer\|([a-f0-9]{32})\|""").find(embedHtml)?.groupValues?.get(1)
                 ?: return false
 
             val apiResp = app.post(

@@ -1,11 +1,13 @@
 package com.AniTubeDesenhos
 
 import android.content.Context
+import android.util.Base64
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Element
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 @CloudstreamPlugin
@@ -30,11 +32,9 @@ class AniTubeDesenhos : MainAPI() {
     }
 
     override val mainPage = mainPageOf(
-        "$mainUrl/categoria/desenhos" to "Desenhos (CN / Disney / Clássicos)",
-        "$mainUrl/categoria/animes-dublados" to "Animes Dublados",
-        "$mainUrl/categoria/filmes" to "Filmes",
-        "$mainUrl/categoria/animes-legendados" to "Animes Legendados",
-        "$mainUrl/categoria/tokusatsus" to "Tokusatsus",
+        "$mainUrl/?s=desenho" to "Desenhos",
+        "$mainUrl/?s=dublado" to "Dublados",
+        "$mainUrl/?s=filme" to "Filmes",
         "$mainUrl/" to "Últimos Episódios"
     )
 
@@ -55,8 +55,16 @@ class AniTubeDesenhos : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val base = request.data.trimEnd('/')
-        val url = if (page > 1) "$base/page/$page" else request.data
+        val url = if (page > 1) {
+            if (request.data.contains("?s=")) {
+                val queryPart = request.data.substringAfter("?s=")
+                "$mainUrl/page/$page/?s=$queryPart"
+            } else {
+                "${request.data.trimEnd('/')}/page/$page"
+            }
+        } else {
+            request.data
+        }
 
         val doc = try {
             app.get(url, headers = defaultHeaders()).document
@@ -65,39 +73,12 @@ class AniTubeDesenhos : MainAPI() {
             throw e
         }
 
-        val items = mutableListOf<SearchResponse>()
-
-        // Cards visuais (.aniItem) na home ou páginas com capa
-        val cardElements = doc.select(".aniItem, .epiItem")
-        for (card in cardElements) {
-            card.toCardSearchResult(request.name)?.let { items.add(it) }
-        }
-
-        // Lista alfabética (.list_animes li a) usada em /categoria/desenhos, /categoria/filmes, etc.
-        if (items.isEmpty()) {
-            val listLinks = doc.select(".list_animes li a")
-            for (link in listLinks) {
-                val href = fixUrl(link.attr("href"))
-                if (href.isBlank()) continue
-                val title = cleanTitle(link.text().ifBlank { link.attr("title") })
-                if (title.isBlank()) continue
-
-                val tvType = when {
-                    request.name.contains("Filmes", ignoreCase = true) -> TvType.Movie
-                    request.name.contains("Desenhos", ignoreCase = true) -> TvType.Cartoon
-                    else -> TvType.Anime
-                }
-
-                items.add(
-                    newAnimeSearchResponse(title, href, tvType) {
-                        this.posterUrl = "$mainUrl/wp-content/themes/anitube_sarthemes/assets/img/logo.png"
-                    }
-                )
-            }
-        }
+        val items = doc.select(".aniItem, .epiItem")
+            .mapNotNull { it.toCardSearchResult(request.name) }
+            .distinctBy { it.url }
 
         val hasNext = doc.select("a.next, .pagination a[href*='/page/${page + 1}'], a[href*='/page/${page + 1}']").isNotEmpty()
-        return newHomePageResponse(request.name, items.distinctBy { it.url }, hasNext)
+        return newHomePageResponse(request.name, items, hasNext)
     }
 
     private fun Element.toCardSearchResult(sectionName: String): SearchResponse? {
@@ -142,6 +123,7 @@ class AniTubeDesenhos : MainAPI() {
         val doc = app.get(url, headers = defaultHeaders()).document
 
         val episodeLinks = doc.select(".AniPageContainerLista a[href]")
+            .filterNot { it.text().contains("Todos os Epis", ignoreCase = true) }
         val rawTitle = doc.selectFirst(".AniPageContainerTitulo")?.text()
             ?: doc.selectFirst("meta[itemprop=name]")?.attr("content")
             ?: doc.selectFirst("h1")?.text()
@@ -247,6 +229,21 @@ class AniTubeDesenhos : MainAPI() {
         }
     }
 
+    private fun decodeBgsrcToBloggerUrl(rawSrc: String): String? {
+        return try {
+            val bgParam = rawSrc.substringAfter("bgsrc=", "").substringBefore("&")
+            if (bgParam.isBlank()) return null
+            val decodedParam = URLDecoder.decode(bgParam, "UTF-8")
+            val b64 = Regex("""anitube\.biz/([A-Za-z0-9+/=_-]+)/""").find(decodedParam)?.groupValues?.get(1)
+                ?: return null
+            val padded = b64 + "=".repeat((4 - b64.length % 4) % 4)
+            val token = String(Base64.decode(padded, Base64.DEFAULT), Charsets.UTF_8).trim()
+            if (token.startsWith("http")) token else "https://www.blogger.com/video.g?token=$token"
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -276,7 +273,11 @@ class AniTubeDesenhos : MainAPI() {
             .distinct()
 
         for (rawSrc in iframes) {
-            val iframeUrl = if (rawSrc.startsWith("//")) "https:$rawSrc" else rawSrc
+            val iframeUrl = when {
+                rawSrc.startsWith("//") -> "https:$rawSrc"
+                rawSrc.contains("bgsrc=", ignoreCase = true) -> decodeBgsrcToBloggerUrl(rawSrc) ?: rawSrc
+                else -> rawSrc
+            }
             when {
                 iframeUrl.contains("blogger.com/video.g", ignoreCase = true) -> {
                     if (extractBloggerStreams(iframeUrl, playerReferer, callback)) {
