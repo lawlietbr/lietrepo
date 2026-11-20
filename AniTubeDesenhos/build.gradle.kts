@@ -1,4 +1,4 @@
-version = 2
+version = 3
 
 cloudstream {
     description = "Desenhos (Cartoon Network, Disney, Clássicos), Animes Dublados e Filmes no AniTube.biz"

@@ -32,10 +32,10 @@ class AniTubeDesenhos : MainAPI() {
     }
 
     override val mainPage = mainPageOf(
-        "$mainUrl/?s=desenho" to "Desenhos",
-        "$mainUrl/?s=dublado" to "Dublados",
-        "$mainUrl/?s=filme" to "Filmes",
-        "$mainUrl/" to "Últimos Episódios"
+        "$mainUrl/?s=todos+os+episodios+desenho" to "Desenhos",
+        "$mainUrl/?s=dublado+todos+os+episodios" to "Dublados",
+        "$mainUrl/?s=filme+dublado" to "Filmes Dublados",
+        "$mainUrl/" to "Recentes"
     )
 
     private fun defaultHeaders(referer: String = "$mainUrl/"): Map<String, String> = mapOf(
@@ -52,6 +52,18 @@ class AniTubeDesenhos : MainAPI() {
             .replace(Regex("""\s+Online em HD$""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("""\s+Online$""", RegexOption.IGNORE_CASE), "")
             .trim()
+    }
+
+    private fun cleanPosterUrl(rawSrc: String): String? {
+        val trimmed = rawSrc.trim()
+        if (trimmed.isBlank()) return null
+        val secondHttp = trimmed.indexOf("http", startIndex = 5)
+        val cleaned = if (secondHttp > 0) trimmed.substring(secondHttp) else trimmed
+        return fixUrl(cleaned)
+    }
+
+    private fun isSingleEpisodeTitle(rawTitle: String): Boolean {
+        return Regex("""Epis[óo]dio\s*\d+""", RegexOption.IGNORE_CASE).containsMatchIn(rawTitle)
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -73,15 +85,15 @@ class AniTubeDesenhos : MainAPI() {
             throw e
         }
 
-        val items = doc.select(".aniItem, .epiItem")
-            .mapNotNull { it.toCardSearchResult(request.name) }
+        val items = doc.select(".aniItem")
+            .mapNotNull { it.toCardSearchResult(request.name, filterEpisodes = true) }
             .distinctBy { it.url }
 
         val hasNext = doc.select("a.next, .pagination a[href*='/page/${page + 1}'], a[href*='/page/${page + 1}']").isNotEmpty()
         return newHomePageResponse(request.name, items, hasNext)
     }
 
-    private fun Element.toCardSearchResult(sectionName: String): SearchResponse? {
+    private fun Element.toCardSearchResult(sectionName: String, filterEpisodes: Boolean = false): SearchResponse? {
         val link = selectFirst("a") ?: return null
         val href = fixUrl(link.attr("href"))
         if (href.isBlank()) return null
@@ -89,13 +101,15 @@ class AniTubeDesenhos : MainAPI() {
         val rawTitle = selectFirst(".aniItemNome, .epiItemNome")?.text()?.trim()
             ?.ifBlank { link.attr("title") }
             ?: link.attr("title").ifBlank { link.text() }
+        if (filterEpisodes && isSingleEpisodeTitle(rawTitle)) return null
+
         val title = cleanTitle(rawTitle)
         if (title.isBlank()) return null
 
         val img = selectFirst("img")
         val poster = img?.let {
             val src = it.attr("data-src").ifBlank { it.attr("src") }
-            if (src.isNotBlank()) fixUrl(src) else null
+            cleanPosterUrl(src)
         }
 
         val tvType = when {
@@ -111,12 +125,28 @@ class AniTubeDesenhos : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         if (query.isBlank()) return emptyList()
-        val encoded = URLEncoder.encode(query, "UTF-8")
-        val doc = app.get("$mainUrl/?s=$encoded", headers = defaultHeaders()).document
 
-        return doc.select(".aniItem, .epiItem")
-            .mapNotNull { it.toCardSearchResult("Busca") }
+        // 1. Prioriza páginas agrupadas de séries/desenhos ("Todos os Episódios")
+        val seriesEncoded = URLEncoder.encode("$query todos os episodios", "UTF-8")
+        val seriesDoc = app.get("$mainUrl/?s=$seriesEncoded", headers = defaultHeaders()).document
+        val seriesResults = seriesDoc.select(".aniItem, .epiItem")
+            .mapNotNull { it.toCardSearchResult("Busca", filterEpisodes = true) }
             .distinctBy { it.url }
+
+        if (seriesResults.isNotEmpty()) return seriesResults
+
+        // 2. Fallback para filmes ou títulos sem "Todos os Episódios" no nome (ainda filtrando episódios soltos)
+        val rawEncoded = URLEncoder.encode(query, "UTF-8")
+        val rawDoc = app.get("$mainUrl/?s=$rawEncoded", headers = defaultHeaders()).document
+        val filtered = rawDoc.select(".aniItem, .epiItem")
+            .mapNotNull { it.toCardSearchResult("Busca", filterEpisodes = true) }
+            .distinctBy { it.url }
+
+        return filtered.ifEmpty {
+            rawDoc.select(".aniItem, .epiItem")
+                .mapNotNull { it.toCardSearchResult("Busca", filterEpisodes = false) }
+                .distinctBy { it.url }
+        }
     }
 
     override suspend fun load(url: String): LoadResponse? {
