@@ -35,20 +35,32 @@ object AniTubeVideoExtractor {
             ))
             
             val doc = Jsoup.parse(response.text)
-            
+            val targets = linkedMapOf<String, String>()
+
             val abas = doc.select("div.pagEpiAbasItem")
-            
-            var anySuccess = false
-            
             for (aba in abas) {
-                val tabName = aba.text().trim()
+                val tabName = aba.text().trim().ifBlank { "Player" }
                 val tabTarget = aba.attr("aba-target")
-                
                 val container = doc.selectFirst("div#$tabTarget") ?: continue
-                val iframe = container.selectFirst("iframe.metaframe") ?: continue
-                val iframeSrc = iframe.attr("src")
-                
+                val iframe = container.selectFirst("iframe[src]") ?: continue
+                val src = iframe.attr("src").trim()
+                if (src.isNotBlank()) targets.putIfAbsent(src, tabName)
+            }
+
+            // Também captura iframes diretos na página quando não há abas (.pagEpiAbasItem)
+            for (iframe in doc.select("iframe[src]")) {
+                val src = iframe.attr("src").trim()
+                if (src.isNotBlank()) targets.putIfAbsent(src, "Player")
+            }
+
+            var anySuccess = false
+
+            for ((rawSrc, tabName) in targets) {
+                val iframeSrc = if (rawSrc.startsWith("//")) "https:$rawSrc" else rawSrc
                 val success = when {
+                    iframeSrc.contains("anivideo.net", ignoreCase = true) -> {
+                        extractAniVideo(iframeSrc, tabName, url, name, callback)
+                    }
                     iframeSrc.contains("videohls.php") || iframeSrc.contains(".m3u8") -> {
                         extractHlsVideo(iframeSrc, tabName, url, name, callback)
                     }
@@ -60,13 +72,76 @@ object AniTubeVideoExtractor {
                     }
                     else -> false
                 }
-                
+
                 if (success) anySuccess = true
             }
-            
+
             anySuccess
-            
+
         } catch (e: Exception) {
+            false
+        }
+    }
+
+    private suspend fun extractAniVideo(
+        anivideoUrl: String,
+        tabName: String,
+        referer: String,
+        name: String,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        return try {
+            val desktopUa = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            val html = app.get(
+                anivideoUrl,
+                headers = mapOf(
+                    "User-Agent" to desktopUa,
+                    "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language" to "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Referer" to "https://www.anitube.zip/",
+                    "Sec-Fetch-Dest" to "iframe",
+                    "Sec-Fetch-Mode" to "navigate",
+                    "Sec-Fetch-Site" to "cross-site"
+                )
+            ).text.replace("\\/", "/")
+
+            val urls = Regex("""file\s*:\s*["'](https?://[^"']+)["']""")
+                .findAll(html)
+                .map { it.groupValues[1].trim() }
+                .filter { it.isNotBlank() && !it.endsWith(".jpg") && !it.endsWith(".png") && !it.endsWith(".webp") }
+                .distinct()
+                .toList()
+                .ifEmpty {
+                    Regex("""https?://[^"'\s<>\\]+(?:\.m3u8|\.mp4)[^"'\s<>\\]*""")
+                        .findAll(html)
+                        .map { it.value.trim() }
+                        .distinct()
+                        .toList()
+                }
+
+            if (urls.isEmpty()) return false
+
+            urls.forEachIndexed { idx, videoUrl ->
+                val isHls = videoUrl.contains(".m3u8", ignoreCase = true)
+                val label = if (urls.size > 1) "$name - $tabName (${idx + 1})" else "$name - $tabName"
+                callback(
+                    newExtractorLink(
+                        source = "AniTube",
+                        name = label,
+                        url = videoUrl,
+                        type = if (isHls) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                    ) {
+                        this.referer = "https://api.anivideo.net/"
+                        this.headers = mapOf(
+                            "User-Agent" to desktopUa,
+                            "Referer" to "https://api.anivideo.net/",
+                            "Origin" to "https://api.anivideo.net"
+                        )
+                    }
+                )
+            }
+            true
+        } catch (_: Exception) {
             false
         }
     }
