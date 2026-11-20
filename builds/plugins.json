@@ -146,10 +146,10 @@
     },
     {
         "iconUrl": "https://filmeflix.space/favicon.ico",
-        "fileHash": "sha256-c77e0d41dd62b322737be6e42cb10e960eaca74f7ebc263b19f9b376d70be4fc",
+        "fileHash": "sha256-606d68ce0c0968b51955d1c14dbd46e0867d97b6b470b1fe1ca1a0875aeabd5b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 18955,
+        "fileSize": 40154,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -160,9 +160,9 @@
             "Series",
             "Cartoon"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "FilmeFlix",
-        "description": "Filmes e S\u00e9ries Dublados e Nacionais em HD no FilmeFlix",
+        "description": "Filmes e S\u00e9ries Dublados e Nacionais em HD no FilmeFlix (Vidmoly e Abyss)",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/FilmeFlix.cs3",
         "name": "FilmeFlix"
     },
