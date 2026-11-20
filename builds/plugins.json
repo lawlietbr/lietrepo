@@ -20,11 +20,11 @@
         "name": "AnimeFire"
     },
     {
-        "iconUrl": "https://www.anitube.news/wp-content/uploads/cropped-Favicon6-192x192.png",
-        "fileHash": "sha256-13a232ac25628a234df31d3dfce375ce99d5a5c9d139475dceaf77ac644792cc",
+        "iconUrl": "https://www.anitube.zip/wp-content/uploads/cropped-Favicon6-192x192.png",
+        "fileHash": "sha256-5b423bd285f03eea2bc0aaead197925d55af0c129ec3cbe19ebaa4036922af66",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 31389,
+        "fileSize": 31393,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -33,7 +33,7 @@
         "tvTypes": [
             "Animes"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "AniTube",
         "description": "AniTube \u00e9 um site para assistir seus animes favoritos online e de onde quiser, temos uma lista completa com diversos animes recentes e antigos para voc\u00ea explorar e o melhor disso tudo \u00e9 a qualidade do nosso site que o diferencia de outros.",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/AniTube.cs3",
