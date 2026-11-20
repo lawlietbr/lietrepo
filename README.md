@@ -1,35 +1,30 @@
 <div align="center">
 
-# Liet Repo
-## 🇧🇷 Extensão brasileira para CloudStream
+# GuiRepo
+## 🇧🇷 Novo repositório BR para CloudStream
 
-**Deixe uma ⭐ se esse repo te ajudou**  
+**Deixe uma ⭐ se esse repo te ajudou**
 
-[![Deixe uma Star](https://img.shields.io/badge/⭐_Deixe_uma_Star-FFD700?style=for-the-badge&logo=github&logoColor=black)](https://github.com/lawlietbr/lietrepo/stargazers)
-<br>
-
-### Por favor junte-se ao Discord para saber mais e reportar bugs
-[![Junte-se ao Liet Repo no Discord!](https://invidget.switchblade.xyz/q3Xkfhupnz?language=pt)](https://discord.gg/q3Xkfhupnz)
+[![Deixe uma Star](https://img.shields.io/badge/⭐_Deixe_uma_Star-FFD700?style=for-the-badge&logo=github&logoColor=black)](https://github.com/guilhermehanti/lietrepo/stargazers)
 
 <br>
 
 ### Estatísticas
-[![Último Commit](https://img.shields.io/github/last-commit/lawlietbr/lietrepo?style=for-the-badge&logo=github&color=9C27B0&label=Último%20commit)](https://github.com/lawlietbr/lietrepo/activity)
-[![Tamanho do Repo](https://img.shields.io/github/repo-size/lawlietbr/lietrepo?style=for-the-badge&logo=github&color=FF9800&label=Tamanho)](https://github.com/lawlietbr/lietrepo)
-[![Stars](https://img.shields.io/github/stars/lawlietbr/lietrepo?style=for-the-badge&color=FFD700&logo=github&label=Stars)](https://github.com/lawlietbr/lietrepo/stargazers)
-[![Forks](https://img.shields.io/github/forks/lawlietbr/lietrepo?style=for-the-badge&color=orange&logo=github&label=Forks)](https://github.com/lawlietbr/lietrepo/network/members)
+[![Último Commit](https://img.shields.io/github/last-commit/guilhermehanti/lietrepo?style=for-the-badge&logo=github&color=9C27B0&label=Último%20commit)](https://github.com/guilhermehanti/lietrepo/activity)
+[![Tamanho do Repo](https://img.shields.io/github/repo-size/guilhermehanti/lietrepo?style=for-the-badge&logo=github&color=FF9800&label=Tamanho)](https://github.com/guilhermehanti/lietrepo)
+[![Stars](https://img.shields.io/github/stars/guilhermehanti/lietrepo?style=for-the-badge&color=FFD700&logo=github&label=Stars)](https://github.com/guilhermehanti/lietrepo/stargazers)
+[![Forks](https://img.shields.io/github/forks/guilhermehanti/lietrepo?style=for-the-badge&color=orange&logo=github&label=Forks)](https://github.com/guilhermehanti/lietrepo/network/members)
 [![License MIT](https://img.shields.io/badge/License-MIT-8A2BE2?style=for-the-badge&logo=opensourceinitiative)](https://opensource.org/licenses/MIT)
 
 <br>
 
 ### Instalação
 
-**Escreva o shortcode "lietrepo" no Cloudstream**
+**Escreva o shortcode `guirepo` no CloudStream**
 
-**ou Copie esta URL e cole no CloudStream:**
+**ou copie esta URL e cole no CloudStream:**
 
-[![Copiar URL do Repositório](https://img.shields.io/badge/📋_COPIAR_URL-000000?style=for-the-badge&logo=github&logoColor=white)](https://raw.githubusercontent.com/lawlietbr/lietrepo/main/builds/repo.json)
-
+[![Copiar URL do Repositório](https://img.shields.io/badge/📋_COPIAR_URL-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/repo.json)
 
 </div>
 
@@ -52,16 +47,13 @@ Só mantenha os créditos!
 
 ---
 
-# Relacionados
+# Créditos e Relacionados
 
-Projeto inspirado no saimuelrepo.
+Este projeto nasceu originalmente como um fork do **lietrepo**, porém foi amplamente reformulado: diversos plugins novos foram implementados do zero e os plugins remanescentes foram atualizados e corrigidos.
 
-Repositórios de referência:  
-- [![saimuelrepo](https://img.shields.io/badge/saimuelrepo-Repositório-FF6B6B?style=for-the-badge&logo=github)](https://github.com/saimuelbr/saimuelrepo)  
+Repositórios e links de referência:
+- [![lietrepo](https://img.shields.io/badge/lietrepo-Fork_Original-9C27B0?style=for-the-badge&logo=github)](https://github.com/lawlietbr/lietrepo)
+- [![saimuelrepo](https://img.shields.io/badge/saimuelrepo-Repositório-FF6B6B?style=for-the-badge&logo=github)](https://github.com/saimuelbr/saimuelrepo)
 - [![CloudStream Official](https://img.shields.io/badge/CloudStream_Official-GitHub-7289DA?style=for-the-badge&logo=github)](https://github.com/recloudstream/cloudstream)
-- [![CloudStream App](https://img.shields.io/badge/🌐_Baixar_CloudStream-2196F3?style=for-the-badge&logo=android)](https://cloudstream-apk.com/)  
+- [![CloudStream App](https://img.shields.io/badge/🌐_Baixar_CloudStream-2196F3?style=for-the-badge&logo=android)](https://cloudstream-apk.com/)
 - [![Documentação CloudStream](https://img.shields.io/badge/📚_Documentação-4CAF50?style=for-the-badge&logo=readthedocs)](https://recloudstream.github.io/csdocs/)
-
-<br>
-
-</div>

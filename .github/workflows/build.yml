@@ -72,9 +72,9 @@ jobs:
           sed -i -E 's|"jarUrl": "[^"]*/([^/]+)\.jar"|"jarUrl": "'"$REPO_BASE_URL_ESCAPED"'/\1.jar"|g' builds/plugins.json
 
           echo "{
-            \"name\": \"lietrepo\",
-            \"iconUrl\": \"https://github.com/lawlietbr.png\",
-            \"description\": \"Repositório Brasileiro para o Cloudstream\",
+            \"name\": \"guirepo\",
+            \"iconUrl\": \"https://github.com/guilhermehanti.png\",
+            \"description\": \"Novo repositório BR para CloudStream\",
             \"manifestVersion\": 1,
             \"pluginLists\": $PLUGINS_LIST
           }" > builds/repo.json

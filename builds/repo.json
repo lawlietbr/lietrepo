@@ -1,7 +1,7 @@
 {
-  "name": "lietrepo",
-  "iconUrl": "https://github.com/lawlietbr.png",
-  "description": "Repositório Brasileiro para o Cloudstream",
+  "name": "guirepo",
+  "iconUrl": "https://github.com/guilhermehanti.png",
+  "description": "Novo repositório BR para CloudStream",
   "manifestVersion": 1,
   "pluginLists": ["https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/plugins.json"]
 }
