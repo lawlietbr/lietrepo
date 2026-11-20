@@ -1,0 +1,139 @@
+{
+  "date": "2026-11-19",
+  "timezone": "America/Sao_Paulo",
+  "environment": {
+    "device": "MuMu Android 12",
+    "application": "CloudStream 4.9.1",
+    "decoder": "installed application Media3/ExoPlayer"
+  },
+  "catalog": {
+    "homeItems": 24,
+    "searchItems": 14,
+    "episodes": 22,
+    "seasons": 3
+  },
+  "playback": [
+    {
+      "case": "movie-abyss-480",
+      "quality": 480,
+      "durationMs": 11090388,
+      "seekMs": 6500000,
+      "positionMs": 6502441,
+      "initialFrames": 52,
+      "frames": 112,
+      "width": 854,
+      "height": 480,
+      "audioBuffers": 218
+    },
+    {
+      "case": "movie-byse",
+      "quality": 1080,
+      "durationMs": 11090563,
+      "seekMs": 60000,
+      "positionMs": 62347,
+      "initialFrames": 55,
+      "frames": 113,
+      "width": 1920,
+      "height": 1080,
+      "audioBuffers": 234
+    },
+    {
+      "case": "movie-abyss-720",
+      "quality": 720,
+      "durationMs": 11090388,
+      "seekMs": 60000,
+      "positionMs": 62248,
+      "initialFrames": 53,
+      "frames": 108,
+      "width": 1280,
+      "height": 720,
+      "audioBuffers": 214
+    },
+    {
+      "case": "movie-abyss-1080",
+      "quality": 1080,
+      "durationMs": 11090388,
+      "seekMs": 60000,
+      "positionMs": 62082,
+      "initialFrames": 51,
+      "frames": 102,
+      "width": 1920,
+      "height": 1080,
+      "audioBuffers": 193
+    },
+    {
+      "case": "episode-1-abyss",
+      "quality": 360,
+      "durationMs": 3947392,
+      "seekMs": 60000,
+      "positionMs": 62092,
+      "initialFrames": 53,
+      "frames": 105,
+      "width": 640,
+      "height": 360,
+      "audioBuffers": 223
+    },
+    {
+      "case": "episode-2-abyss",
+      "quality": 360,
+      "durationMs": 4022528,
+      "seekMs": 60000,
+      "positionMs": 62257,
+      "initialFrames": 57,
+      "frames": 113,
+      "width": 640,
+      "height": 360,
+      "audioBuffers": 229
+    },
+    {
+      "case": "episode-3-abyss",
+      "quality": 480,
+      "durationMs": 4413609,
+      "seekMs": 60000,
+      "positionMs": 62049,
+      "initialFrames": 51,
+      "frames": 101,
+      "width": 854,
+      "height": 480,
+      "audioBuffers": 202
+    },
+    {
+      "case": "episode-3-byse",
+      "quality": 1080,
+      "durationMs": 4413641,
+      "seekMs": 60000,
+      "positionMs": 62413,
+      "initialFrames": 51,
+      "frames": 111,
+      "width": 1920,
+      "height": 1080,
+      "audioBuffers": 230
+    },
+    {
+      "case": "episode-3-2-byse",
+      "quality": 1080,
+      "durationMs": 4112798,
+      "seekMs": 60000,
+      "positionMs": 62458,
+      "initialFrames": 54,
+      "frames": 115,
+      "width": 1920,
+      "height": 1080,
+      "audioBuffers": 245
+    }
+  ],
+  "passCriteria": "Video frames and playback position advance for >=2 seconds before and after seek; audio buffers decoded",
+  "failures": 0,
+  "automatedTests": {
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "productionPackage": {
+    "version": 2,
+    "bytes": 45654,
+    "sha256": "33a723b2fd15b4e47707aeb3d59f79f1fda6c931f628180e74e0c573365e22db",
+    "automaticTestRunner": false
+  }
+}
