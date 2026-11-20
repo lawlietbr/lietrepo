@@ -1,7 +1,7 @@
 version = 3
 
 cloudstream {
-    setRepo("https://github.com/guilhermehanti/lietrepo")
+    setRepo("https://github.com/guilhermehanti/guirepo")
     description = "Filmes e séries do UltraCineTV via Abyss e Byse. Abyss reproduz localmente, sem casting."
     language = "pt-br"
     authors = listOf("guilhermehanti")

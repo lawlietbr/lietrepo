@@ -5,15 +5,15 @@
 
 **Deixe uma ⭐ se esse repo te ajudou**
 
-[![Deixe uma Star](https://img.shields.io/badge/⭐_Deixe_uma_Star-FFD700?style=for-the-badge&logo=github&logoColor=black)](https://github.com/guilhermehanti/lietrepo/stargazers)
+[![Deixe uma Star](https://img.shields.io/badge/⭐_Deixe_uma_Star-FFD700?style=for-the-badge&logo=github&logoColor=black)](https://github.com/guilhermehanti/guirepo/stargazers)
 
 <br>
 
 ### Estatísticas
-[![Último Commit](https://img.shields.io/github/last-commit/guilhermehanti/lietrepo?style=for-the-badge&logo=github&color=9C27B0&label=Último%20commit)](https://github.com/guilhermehanti/lietrepo/activity)
-[![Tamanho do Repo](https://img.shields.io/github/repo-size/guilhermehanti/lietrepo?style=for-the-badge&logo=github&color=FF9800&label=Tamanho)](https://github.com/guilhermehanti/lietrepo)
-[![Stars](https://img.shields.io/github/stars/guilhermehanti/lietrepo?style=for-the-badge&color=FFD700&logo=github&label=Stars)](https://github.com/guilhermehanti/lietrepo/stargazers)
-[![Forks](https://img.shields.io/github/forks/guilhermehanti/lietrepo?style=for-the-badge&color=orange&logo=github&label=Forks)](https://github.com/guilhermehanti/lietrepo/network/members)
+[![Último Commit](https://img.shields.io/github/last-commit/guilhermehanti/guirepo?style=for-the-badge&logo=github&color=9C27B0&label=Último%20commit)](https://github.com/guilhermehanti/guirepo/activity)
+[![Tamanho do Repo](https://img.shields.io/github/repo-size/guilhermehanti/guirepo?style=for-the-badge&logo=github&color=FF9800&label=Tamanho)](https://github.com/guilhermehanti/guirepo)
+[![Stars](https://img.shields.io/github/stars/guilhermehanti/guirepo?style=for-the-badge&color=FFD700&logo=github&label=Stars)](https://github.com/guilhermehanti/guirepo/stargazers)
+[![Forks](https://img.shields.io/github/forks/guilhermehanti/guirepo?style=for-the-badge&color=orange&logo=github&label=Forks)](https://github.com/guilhermehanti/guirepo/network/members)
 [![License MIT](https://img.shields.io/badge/License-MIT-8A2BE2?style=for-the-badge&logo=opensourceinitiative)](https://opensource.org/licenses/MIT)
 
 <br>
@@ -24,7 +24,7 @@
 
 **ou copie esta URL e cole no CloudStream:**
 
-[![Copiar URL do Repositório](https://img.shields.io/badge/📋_COPIAR_URL-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/repo.json)
+[![Copiar URL do Repositório](https://img.shields.io/badge/📋_COPIAR_URL-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/repo.json)
 
 </div>
 

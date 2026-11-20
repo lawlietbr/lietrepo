@@ -1,4 +1,4 @@
-name: Build do L
+name: Build GuiRepo
 
 on:
   push:
