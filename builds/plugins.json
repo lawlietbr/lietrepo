@@ -16,19 +16,19 @@
         "version": 3,
         "internalName": "AniTube",
         "description": "AniTube \u00e9 um site para assistir seus animes favoritos online e de onde quiser, temos uma lista completa com diversos animes recentes e antigos para voc\u00ea explorar e o melhor disso tudo \u00e9 a qualidade do nosso site que o diferencia de outros.",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/AniTube.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/AniTube.cs3",
         "name": "AniTube"
     },
     {
-        "iconUrl": "https://www.anitube.biz/wp-content/themes/anitube_sarthemes/assets/img/favicon.png",
-        "fileHash": "sha256-374703736baab0c58cf921ca17da8c1eb78ae5ebd5093e80553f795917163a83",
+        "iconUrl": "https://www.anitube.biz/wp-content/themes/anitube_sarthemes/img/favicon-512.png?v=3",
+        "fileHash": "sha256-6520a4fd8e52f498a56956c640c06ddf6c036341c48e73e8f9ac8b98664ee92d",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
         "fileSize": 22975,
         "status": 1,
         "language": "pt-br",
         "authors": [
-            "lawlietbr"
+            "guilhermehanti"
         ],
         "tvTypes": [
             "Cartoon",
@@ -36,10 +36,10 @@
             "TvSeries",
             "Movie"
         ],
-        "version": 4,
+        "version": 5,
         "internalName": "AniTubeDesenhos",
         "description": "Desenhos (Cartoon Network, Disney, Cl\u00e1ssicos), Animes Dublados e Filmes no AniTube.biz",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/AniTubeDesenhos.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/AniTubeDesenhos.cs3",
         "name": "AniTubeDesenhos"
     },
     {
@@ -61,7 +61,7 @@
         "version": 3,
         "internalName": "CineAgora",
         "description": "Assista filmes e s\u00e9ries online gr\u00e1tis em HD no CineAgora",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/CineAgora.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/CineAgora.cs3",
         "name": "CineAgora"
     },
     {
@@ -81,7 +81,7 @@
         "version": 1,
         "internalName": "DattebayoBR",
         "description": "DattebayoBR Animes Online",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/DattebayoBR.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/DattebayoBR.cs3",
         "name": "DattebayoBR"
     },
     {
@@ -101,7 +101,7 @@
         "version": 4,
         "internalName": "EmbedTV",
         "description": "Embed TV - O melhor site de TV online. ",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/EmbedTV.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/EmbedTV.cs3",
         "name": "EmbedTV"
     },
     {
@@ -123,7 +123,7 @@
         "version": 2,
         "internalName": "FilmeFlix",
         "description": "Filmes e S\u00e9ries Dublados e Nacionais em HD no FilmeFlix (Vidmoly e Abyss)",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/FilmeFlix.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/FilmeFlix.cs3",
         "name": "FilmeFlix"
     },
     {
@@ -145,7 +145,7 @@
         "version": 2,
         "internalName": "PobreFlixTV",
         "description": "Filmes, S\u00e9ries e Anima\u00e7\u00f5es Dublados e Legendados em HD no PobreFlixTV",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/PobreFlixTV.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/PobreFlixTV.cs3",
         "name": "PobreFlixTV"
     },
     {
@@ -165,7 +165,7 @@
         "version": 3,
         "internalName": "ReiDosEmbeds",
         "description": "Rei dos Embeds - O melhor diret\u00f3rio de canais ao vivo. Mais de 150 canais dispon\u00edveis.",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/ReiDosEmbeds.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/ReiDosEmbeds.cs3",
         "name": "ReiDosEmbeds"
     },
     {
@@ -186,16 +186,16 @@
         "version": 3,
         "internalName": "TopFlix",
         "description": "Filmes e S\u00e9ries Online em HD no TopFlix",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/TopFlix.cs3",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/TopFlix.cs3",
         "name": "TopFlix"
     },
     {
         "iconUrl": "https://www.ultracinetv.lat/favicon.ico",
-        "fileHash": "sha256-3e93cbbc7bac0b71616f0ed8f150763f52a073ee27fd3bdcdd56987ced7f6532",
+        "fileHash": "sha256-7e9c66c8085a84aae885e25d01dca2cf6088576c6b74a072cb4d136fa3840626",
         "apiVersion": 1,
-        "repositoryUrl": "https://github.com/guilhermehanti/lietrepo",
+        "repositoryUrl": "https://github.com/guilhermehanti/guirepo",
         "fileSize": 45999,
-        "status": 3,
+        "status": 1,
         "language": "pt-br",
         "authors": [
             "guilhermehanti"
@@ -204,10 +204,10 @@
             "Movies",
             "Series"
         ],
-        "version": 3,
+        "version": 4,
         "internalName": "UltraCineTV",
-        "description": "Filmes e s\u00e9ries do UltraCineTV via Abyss e Byse. Abyss reproduz localmente, sem casting.",
-        "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/UltraCineTV.cs3",
+        "description": "Filmes e S\u00e9ries Dublados e Legendados em HD no UltraCineTV",
+        "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/UltraCineTV.cs3",
         "name": "UltraCineTV"
     }
 ]
