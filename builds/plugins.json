@@ -41,10 +41,10 @@
     },
     {
         "iconUrl": "https://www.anitube.biz/wp-content/themes/anitube_sarthemes/assets/img/favicon.png",
-        "fileHash": "sha256-92e02f268208fb0d34f4759b6ab63df555019304b782ab00e92011fbad47d737",
+        "fileHash": "sha256-374703736baab0c58cf921ca17da8c1eb78ae5ebd5093e80553f795917163a83",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 20700,
+        "fileSize": 22975,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -56,7 +56,7 @@
             "TvSeries",
             "Movie"
         ],
-        "version": 3,
+        "version": 4,
         "internalName": "AniTubeDesenhos",
         "description": "Desenhos (Cartoon Network, Disney, Cl\u00e1ssicos), Animes Dublados e Filmes no AniTube.biz",
         "url": "https://github.com/guilhermehanti/lietrepo/raw/refs/heads/main/builds/AniTubeDesenhos.cs3",
