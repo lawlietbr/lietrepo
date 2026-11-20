@@ -52,7 +52,7 @@ object AniTubeVideoExtractor {
                     iframeSrc.contains("videohls.php") || iframeSrc.contains(".m3u8") -> {
                         extractHlsVideo(iframeSrc, tabName, url, name, callback)
                     }
-                    iframeSrc.contains("anitube.news/") && !iframeSrc.contains("videohls.php") -> {
+                    iframeSrc.contains("anitube.zip/") && !iframeSrc.contains("videohls.php") -> {
                         extractFromProxy(iframeSrc, tabName, url, name, callback)
                     }
                     iframeSrc.contains("blogger.com") -> {
@@ -152,7 +152,7 @@ object AniTubeVideoExtractor {
         val fullProxyUrl = if (proxyUrl.startsWith("http")) {
             proxyUrl
         } else {
-            "https://www.anitube.news$proxyUrl"
+            "https://www.anitube.zip$proxyUrl"
         }
         
         val proxyResponse = app.get(

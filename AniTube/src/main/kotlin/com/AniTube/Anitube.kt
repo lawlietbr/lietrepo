@@ -6,7 +6,7 @@ import org.jsoup.nodes.Element
 import java.net.URLDecoder
 
 class AniTube : MainAPI() {
-    override var mainUrl = "https://www.anitube.news"
+    override var mainUrl = "https://www.anitube.zip"
     override var name = "AniTube"
     override val hasMainPage = true
     override var lang = "pt-br"
