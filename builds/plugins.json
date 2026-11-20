@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://www.anitube.zip/wp-content/uploads/cropped-Favicon6-192x192.png",
-        "fileHash": "sha256-5b423bd285f03eea2bc0aaead197925d55af0c129ec3cbe19ebaa4036922af66",
+        "fileHash": "sha256-cc333e5590f14470282a5877d6f608da9818b6f17043180b07804090bd4a648a",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/lawlietbr/lietrepo",
-        "fileSize": 31393,
+        "fileSize": 34692,
         "status": 1,
         "language": "pt-br",
         "authors": [
@@ -13,7 +13,7 @@
         "tvTypes": [
             "Animes"
         ],
-        "version": 3,
+        "version": 4,
         "internalName": "AniTube",
         "description": "AniTube \u00e9 um site para assistir seus animes favoritos online e de onde quiser, temos uma lista completa com diversos animes recentes e antigos para voc\u00ea explorar e o melhor disso tudo \u00e9 a qualidade do nosso site que o diferencia de outros.",
         "url": "https://github.com/guilhermehanti/guirepo/raw/refs/heads/main/builds/AniTube.cs3",
