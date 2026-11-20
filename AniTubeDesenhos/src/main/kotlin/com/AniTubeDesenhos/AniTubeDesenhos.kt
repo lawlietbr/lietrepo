@@ -274,6 +274,65 @@ class AniTubeDesenhos : MainAPI() {
         }
     }
 
+    private suspend fun extractAniVideoStreams(
+        anivideoUrl: String,
+        referer: String,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        return try {
+            val headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language" to "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Referer" to referer,
+                "Sec-Fetch-Dest" to "iframe",
+                "Sec-Fetch-Mode" to "navigate",
+                "Sec-Fetch-Site" to "cross-site"
+            )
+            val html = app.get(anivideoUrl, headers = headers).text
+            val unescaped = html.replace("\\/", "/")
+
+            val fileUrls = Regex("""file\s*:\s*["'](https?://[^"']+)["']""")
+                .findAll(unescaped)
+                .map { it.groupValues[1].trim() }
+                .filter { it.isNotBlank() && !it.endsWith(".jpg") && !it.endsWith(".png") && !it.endsWith(".webp") }
+                .distinct()
+                .toList()
+                .ifEmpty {
+                    Regex("""https?://[^"'\s<>\\]+(?:\.m3u8|\.mp4)[^"'\s<>\\]*""")
+                        .findAll(unescaped)
+                        .map { it.value.trim() }
+                        .distinct()
+                        .toList()
+                }
+
+            if (fileUrls.isEmpty()) return false
+
+            fileUrls.forEachIndexed { idx, videoUrl ->
+                val isHls = videoUrl.contains(".m3u8", ignoreCase = true)
+                val label = if (fileUrls.size > 1) "$name - AniVideo ${idx + 1}" else "$name - AniVideo"
+                callback(
+                    newExtractorLink(
+                        source = label,
+                        name = label,
+                        url = videoUrl,
+                        type = if (isHls) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                    ) {
+                        this.referer = "https://api.anivideo.net/"
+                        this.headers = mapOf(
+                            "User-Agent" to USER_AGENT,
+                            "Referer" to "https://api.anivideo.net/",
+                            "Origin" to "https://api.anivideo.net"
+                        )
+                    }
+                )
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -309,6 +368,11 @@ class AniTubeDesenhos : MainAPI() {
                 else -> rawSrc
             }
             when {
+                iframeUrl.contains("anivideo.net", ignoreCase = true) -> {
+                    if (extractAniVideoStreams(iframeUrl, playerReferer, callback)) {
+                        foundAny = true
+                    }
+                }
                 iframeUrl.contains("blogger.com/video.g", ignoreCase = true) -> {
                     if (extractBloggerStreams(iframeUrl, playerReferer, callback)) {
                         foundAny = true
